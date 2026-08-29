@@ -1,0 +1,107 @@
+gateway:
+  default_timeout_seconds: 30
+  deny_external_side_effects: true
+  cache_enabled: true
+  max_calls_per_task: 20
+  max_parallel_calls: 2
+tools:
+  - web_search
+  - fetch_page
+  - search_reddit
+  - search_companies
+  - search_github
+  - search_regulations
+  - read_document
+  - python_execute
+  - database_query
+  - semantic_memory_search
+adapters:
+  web_search: searxng
+  fetch_page: [trafilatura, crawl4ai, playwright]
+  search_reddit: praw
+  search_companies: company_public_sources
+  search_github: pygithub
+  search_regulations: regulatory_registry
+  read_document: [docling, pymupdf]
+  python_execute: docker_python
+  database_query: sqlalchemy_db
+  semantic_memory_search: pgvector
+adapter_endpoints:
+  searxng: http://127.0.0.1:8080
+  crawl4ai: http://127.0.0.1:11235
+routing:
+  fetch_page:
+    static_min_chars: 200
+    order: [trafilatura, crawl4ai, playwright]
+  read_document:
+    order: [docling, pymupdf]
+timeouts:
+  lightweight_http: 30
+  crawl4ai: 120
+  playwright: 120
+  document: 180
+  sandbox: 60
+  embeddings: 60
+concurrency:
+  lightweight_http: 8
+  crawl4ai: 2
+  playwright: 2
+  document: 2
+  sandbox: 2
+  embeddings: 2
+cache:
+  enabled: true
+  ttl_seconds: 3600
+sandbox:
+  image: python:3.12-slim
+  network: none
+  memory_mb: 512
+  cpus: 1.0
+  timeout_seconds: 60
+  max_output_bytes: 100000
+embedding_profile:
+  provider: fastembed
+  model: BAAI/bge-small-en-v1.5
+  dimension: 384
+  device: cpu
+  normalization_version: ws-v1
+regulator_registry:
+  EU: eurlex
+  CH: finma
+  EBA: eba
+  ECB: ecb
+  ESMA: esma
+  US: sec
+actor_permissions:
+  FlowController: [database_query, semantic_memory_search]
+  TrendScout: [web_search, fetch_page, search_companies, search_github, search_regulations, read_document, database_query, semantic_memory_search]
+  PainPointMiner: [web_search, fetch_page, search_reddit, read_document, database_query, semantic_memory_search]
+  IdeaGenerator: [database_query, semantic_memory_search]
+  AssumptionAuditor: [database_query, semantic_memory_search]
+  EvidenceResearcher: [web_search, fetch_page, search_reddit, search_companies, search_github, search_regulations, read_document, database_query, semantic_memory_search]
+  MarketAnalyst: [web_search, fetch_page, search_reddit, search_companies, read_document, python_execute, database_query, semantic_memory_search]
+  TechnicalAnalyst: [web_search, fetch_page, search_github, read_document, python_execute, database_query, semantic_memory_search]
+  EconomicsAnalyst: [web_search, fetch_page, search_companies, read_document, python_execute, database_query, semantic_memory_search]
+  RedTeam: [web_search, fetch_page, search_reddit, search_companies, search_github, search_regulations, read_document, python_execute, database_query, semantic_memory_search]
+  IndustryAnalyst: [web_search, search_companies]
+  RegulatoryScout: [search_regulations, read_document]
+  TechnologyScout: [search_github, web_search]
+  ContrarianScout: [web_search, semantic_memory_search]
+  AutomationLens: [semantic_memory_search, database_query]
+  AINativeLens: [semantic_memory_search, database_query]
+  RegulatoryLens: [semantic_memory_search, database_query]
+  VerticalSaaSLens: [semantic_memory_search, database_query]
+  APIDataLens: [semantic_memory_search, database_query]
+  ServicestoSoftwareLens: [semantic_memory_search, database_query]
+  CapabilityInversionLens: [semantic_memory_search, database_query]
+  CrossIndustryAnalogyLens: [semantic_memory_search, database_query]
+  DemandValidator: [database_query, web_search, fetch_page]
+  DistributionAnalyst: [database_query, web_search, fetch_page]
+  CompetitiveAnalyst: [database_query, web_search, fetch_page]
+  RegulatoryValidator: [database_query, web_search, fetch_page]
+  MarketSkeptic: [database_query, web_search]
+  IncumbentResponseAnalyst: [database_query, web_search]
+  CommoditizationAnalyst: [database_query, web_search]
+  DistributionSkeptic: [database_query, web_search]
+  EconomicsSkeptic: [database_query, web_search]
+  AutomationOperationsSkeptic: [database_query, web_search]

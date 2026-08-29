@@ -1,0 +1,14 @@
+eligibility:
+  require_all_digital_dimensions: true
+  require_autonomous_scalability: true
+evidence:
+  minimum_independent_sources_for_material_claim: 2
+  model_judgment_satisfies_fatal_assumption: false
+approvals:
+  require_for:
+    - external_spend
+    - public_deployment
+    - outbound_contact
+    - paid_acquisition
+    - publication
+

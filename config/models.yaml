@@ -1,0 +1,79 @@
+active_provider: ollama
+default_profile: gpt_oss_20b_64k
+fallback_profiles:
+  - ministral_3_14b_64k
+providers:
+  ollama:
+    base_url: http://127.0.0.1:11434
+    timeout_seconds: 180
+    keep_alive: 5m
+profiles:
+  gpt_oss_20b_64k:
+    provider: ollama
+    model: gpt-oss:20b-64k
+    family: gpt-oss
+    maximum_context_tokens: 64000
+    request_context_tokens: 16384
+    reasoning: true
+    tools: true
+    structured_output: true
+    active_concurrency: 1
+  ministral_3_14b_64k:
+    provider: ollama
+    model: ministral-3:14b-64k
+    family: ministral-3
+    maximum_context_tokens: 64000
+    request_context_tokens: 16384
+    reasoning: false
+    tools: true
+    structured_output: true
+    active_concurrency: 1
+  deepseek_r1_14b_48k:
+    provider: ollama
+    model: deepseek-r1:14b-48k
+    family: deepseek-r1
+    maximum_context_tokens: 48000
+    request_context_tokens: 32768
+    reasoning: true
+    tools: false
+    structured_output: true
+    active_concurrency: 1
+  qwen3_14b_64k:
+    provider: ollama
+    model: qwen3:14b-64k
+    family: qwen3
+    maximum_context_tokens: 64000
+    request_context_tokens: 16384
+    reasoning: true
+    tools: true
+    structured_output: true
+    active_concurrency: 1
+roles:
+  THINKER:
+    primary_profile: deepseek_r1_14b_48k
+    challenger_profile: qwen3_14b_64k
+    fallback_profiles: [gpt_oss_20b_64k]
+    context_tokens: 32768
+    thinking_mode: medium
+    challenger_fraction: 0.10
+  DOER:
+    primary_profile: qwen3_14b_64k
+    challenger_profile: ministral_3_14b_64k
+    fallback_profiles: [ministral_3_14b_64k, gpt_oss_20b_64k]
+    context_tokens: 16384
+    thinking_mode: "off"
+    challenger_fraction: 0.10
+  BUILDER:
+    primary_profile: qwen3_14b_64k
+    challenger_profile: ministral_3_14b_64k
+    fallback_profiles: [ministral_3_14b_64k]
+    context_tokens: 24576
+    thinking_mode: adaptive
+    challenger_fraction: 0.10
+  JUDGE:
+    primary_profile: gpt_oss_20b_64k
+    challenger_profile: deepseek_r1_14b_48k
+    fallback_profiles: [deepseek_r1_14b_48k]
+    context_tokens: 32768
+    thinking_mode: high
+    challenger_fraction: 0.05

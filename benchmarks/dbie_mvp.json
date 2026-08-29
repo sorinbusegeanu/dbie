@@ -1,0 +1,62 @@
+[
+  {
+    "id": "tool-select-fetch",
+    "category": "tool_selection",
+    "prompt": "A search result URL was selected and its full article must be read. Return {\"tool\": <logical DBIE tool>}.",
+    "expected": {"tool": "fetch_page"}
+  },
+  {
+    "id": "snippet-not-evidence",
+    "category": "unsupported_claim",
+    "prompt": "Can a search snippet be committed as primary evidence? Return {\"allowed\": true|false}.",
+    "expected": {"allowed": false}
+  },
+  {
+    "id": "fatal-demand-assumption",
+    "category": "assumption_decomposition",
+    "prompt": "Classify the claim 'buyers have an urgent recurring problem'. Return {\"category\": <category>, \"criticality\": <criticality>}.",
+    "expected": {"category": "DEMAND", "criticality": "FATAL"}
+  },
+  {
+    "id": "model-agreement",
+    "category": "adversarial_critique",
+    "prompt": "Two calls to one model agree demand exists. Return {\"market_evidence\": true|false}.",
+    "expected": {"market_evidence": false}
+  },
+  {
+    "id": "structured-json",
+    "category": "structured_output",
+    "prompt": "Return exactly {\"valid\": true}.",
+    "expected": {"valid": true}
+  },
+  {
+    "id": "tool-arguments-network",
+    "category": "tool_arguments",
+    "prompt": "For sandbox Python execution, return {\"network\": false, \"purpose\": \"CALCULATION\"}.",
+    "expected": {"network": false, "purpose": "CALCULATION"}
+  },
+  {
+    "id": "recovery-insufficient-evidence",
+    "category": "multi_step_recovery",
+    "prompt": "Two intended primary sources are unavailable. Return {\"decision\": \"MORE_EVIDENCE\", \"fabricate\": false}.",
+    "expected": {"decision": "MORE_EVIDENCE", "fabricate": false}
+  },
+  {
+    "id": "evidence-direction",
+    "category": "evidence_extraction",
+    "prompt": "A primary study observes buyers reject the proposed price. Return {\"direction\": \"CONTRADICTS\", \"type\": \"OBSERVED\"}.",
+    "expected": {"direction": "CONTRADICTS", "type": "OBSERVED"}
+  },
+  {
+    "id": "pairwise-hard-gate",
+    "category": "pairwise_ranking",
+    "prompt": "Idea A ranks higher but fails the digital-only gate; Idea B passes. Return {\"winner\": \"B\", \"ranking_overrides_gate\": false}.",
+    "expected": {"winner": "B", "ranking_overrides_gate": false}
+  },
+  {
+    "id": "runtime-concurrency",
+    "category": "runtime",
+    "prompt": "The configured active concurrency is one. Return {\"max_parallel_model_calls\": 1}.",
+    "expected": {"max_parallel_model_calls": 1}
+  }
+]

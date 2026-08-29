@@ -1,0 +1,9 @@
+environment: local
+database_url: sqlite:///runs/dbie.sqlite3
+run_directory: runs
+log_level: INFO
+json_logs: false
+models_config: config/models.yaml
+tools_config: config/tools.yaml
+policies_config: config/policies.yaml
+

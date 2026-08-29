@@ -1,0 +1,247 @@
+"""Least-privilege discovery, ideation, validation and red-team actors."""
+
+from __future__ import annotations
+
+import re
+from dataclasses import dataclass
+
+from crewai import Agent
+
+from dbie.crews.router_llm import RouterLLM
+from dbie.models.performance import ModelExecutionContext
+from dbie.models.roles import ModelRole
+from dbie.models.task_roles import TaskClass
+from dbie.tools.contracts import ToolName
+from dbie.tools.crewai_tools import CrewAIToolContext, crewai_tools_for
+from dbie.tools.gateway import ToolGateway
+
+
+@dataclass(frozen=True)
+class ActorSpec:
+    role: str
+    group: str
+    goal: str
+    tools: tuple[ToolName, ...]
+    model_role: ModelRole
+
+
+DISCOVERY_SPECS = (
+    ActorSpec(
+        "Trend Scout",
+        "discovery",
+        "Find emerging demand signals",
+        (ToolName.WEB_SEARCH, ToolName.FETCH_PAGE),
+        ModelRole.DOER,
+    ),
+    ActorSpec(
+        "Pain-Point Miner",
+        "discovery",
+        "Find repeated costly pains",
+        (ToolName.WEB_SEARCH, ToolName.SEARCH_REDDIT),
+        ModelRole.DOER,
+    ),
+    ActorSpec(
+        "Industry Analyst",
+        "discovery",
+        "Map industry workflow gaps",
+        (ToolName.WEB_SEARCH, ToolName.SEARCH_COMPANIES),
+        ModelRole.DOER,
+    ),
+    ActorSpec(
+        "Regulatory Scout",
+        "discovery",
+        "Find regulation-driven needs",
+        (ToolName.SEARCH_REGULATIONS, ToolName.READ_DOCUMENT),
+        ModelRole.DOER,
+    ),
+    ActorSpec(
+        "Technology Scout",
+        "discovery",
+        "Find newly feasible products",
+        (ToolName.SEARCH_GITHUB, ToolName.WEB_SEARCH),
+        ModelRole.DOER,
+    ),
+    ActorSpec(
+        "Contrarian Scout",
+        "discovery",
+        "Search neglected and dissimilar problems",
+        (ToolName.WEB_SEARCH, ToolName.SEMANTIC_MEMORY_SEARCH),
+        ModelRole.DOER,
+    ),
+)
+
+IDEATION_SPECS = tuple(
+    ActorSpec(
+        name,
+        "ideation",
+        f"Generate ideas through the {name}",
+        (),
+        ModelRole.THINKER,
+    )
+    for name in (
+        "Automation Lens",
+        "AI-Native Lens",
+        "Regulatory Lens",
+        "Vertical SaaS Lens",
+        "API/Data Lens",
+        "Services-to-Software Lens",
+        "Capability-Inversion Lens",
+        "Cross-Industry Analogy Lens",
+    )
+)
+
+VALIDATION_SPECS = tuple(
+    ActorSpec(
+        name,
+        "validation",
+        f"Independently validate {name}",
+        (ToolName.DATABASE_QUERY, ToolName.WEB_SEARCH, ToolName.FETCH_PAGE),
+        ModelRole.DOER,
+    )
+    for name in (
+        "Demand Validator",
+        "Economics Analyst",
+        "Distribution Analyst",
+        "Technical Analyst",
+        "Competitive Analyst",
+        "Regulatory Validator",
+    )
+)
+
+RED_TEAM_SPECS = tuple(
+    ActorSpec(
+        name,
+        "red_team",
+        f"Attack the candidate as {name}",
+        (),
+        ModelRole.JUDGE,
+    )
+    for name in (
+        "Market Skeptic",
+        "Incumbent Response Analyst",
+        "Commoditization Analyst",
+        "Distribution Skeptic",
+        "Economics Skeptic",
+        "Automation/Operations Skeptic",
+    )
+)
+
+SYNTHESIS_SPECS = tuple(
+    ActorSpec(name, "synthesis", goal, (), ModelRole.THINKER)
+    for name, goal in (
+        ("Opportunity Synthesizer", "Synthesize qualified opportunities"),
+        ("Assumption Decomposer", "Create falsifiable atomic assumptions"),
+        ("Research Planner", "Plan evidence collection by information gain"),
+        ("Evidence Reconciler", "Reconcile evidence and contradictions"),
+        ("Experiment Designer", "Design the cheapest falsifying experiment"),
+        ("Portfolio Reasoner", "Reason about uncertainty and portfolio value"),
+    )
+)
+
+BUILDER_SPECS = tuple(
+    ActorSpec(name, "builder", goal, (), ModelRole.BUILDER)
+    for name, goal in (
+        ("MVP Implementer", "Implement a preregistered MVP specification"),
+        ("Test Repair Agent", "Generate tests and repair bounded failures"),
+        ("Integration Agent", "Integrate approved MVP components"),
+    )
+)
+
+
+class CrewCatalog:
+    def __init__(self, gateway: ToolGateway, llm: RouterLLM) -> None:
+        self.gateway = gateway
+        self.llm = llm
+
+    @property
+    def specs(self) -> tuple[ActorSpec, ...]:
+        return (
+            DISCOVERY_SPECS
+            + IDEATION_SPECS
+            + VALIDATION_SPECS
+            + SYNTHESIS_SPECS
+            + BUILDER_SPECS
+            + RED_TEAM_SPECS
+        )
+
+    def build_agent(self, spec: ActorSpec, context: CrewAIToolContext) -> Agent:
+        actor_id = actor_id_for(spec.role)
+        actor_context = CrewAIToolContext(
+            run_id=context.run_id,
+            stage_id=context.stage_id,
+            task_id=context.task_id,
+            actor_id=actor_id,
+            candidate_id=context.candidate_id,
+            assumption_id=context.assumption_id,
+        )
+        return Agent(
+            role=spec.role,
+            goal=spec.goal,
+            backstory=(
+                "You operate inside DBIE. Cite provenance, distinguish unknowns, "
+                "and never treat model agreement as market evidence."
+            ),
+            llm=self.llm.for_execution(
+                spec.model_role,
+                ModelExecutionContext(
+                    run_id=context.run_id,
+                    crew_id=spec.group,
+                    agent_id=actor_id,
+                    task_id=context.task_id,
+                    task_class=task_class_for_actor(spec),
+                ),
+            ),
+            tools=crewai_tools_for(self.gateway, actor_context, list(spec.tools)),
+            allow_delegation=False,
+            allow_code_execution=False,
+            max_iter=8,
+            verbose=False,
+        )
+
+
+def exploration_allocation(total: int, fraction: float = 0.20) -> tuple[int, int]:
+    if not 0.15 <= fraction <= 0.25:
+        raise ValueError("exploration fraction must be between 15% and 25%")
+    exploration = round(total * fraction)
+    return total - exploration, exploration
+
+
+def actor_id_for(role: str) -> str:
+    return re.sub(r"[^A-Za-z0-9]", "", role)
+
+
+def task_class_for_actor(spec: ActorSpec) -> TaskClass:
+    by_role = {
+        "Regulatory Scout": TaskClass.REGULATORY_RESEARCH,
+        "Technology Scout": TaskClass.GITHUB_RESEARCH,
+        "Industry Analyst": TaskClass.COMPETITOR_RESEARCH,
+        "Regulatory Validator": TaskClass.REGULATORY_RESEARCH,
+        "Competitive Analyst": TaskClass.COMPETITOR_RESEARCH,
+        "Opportunity Synthesizer": TaskClass.OPPORTUNITY_SYNTHESIS,
+        "Assumption Decomposer": TaskClass.ASSUMPTION_DECOMPOSITION,
+        "Research Planner": TaskClass.RESEARCH_PLANNING,
+        "Evidence Reconciler": TaskClass.EVIDENCE_RECONCILIATION,
+        "Experiment Designer": TaskClass.EXPERIMENT_DESIGN,
+        "Portfolio Reasoner": TaskClass.EVIDENCE_RECONCILIATION,
+        "MVP Implementer": TaskClass.MVP_IMPLEMENTATION,
+        "Test Repair Agent": TaskClass.TEST_FIX_LOOP,
+        "Integration Agent": TaskClass.MVP_IMPLEMENTATION,
+    }
+    if spec.role in by_role:
+        return by_role[spec.role]
+    if spec.group == "ideation":
+        return TaskClass.OPPORTUNITY_SYNTHESIS
+    if spec.group == "red_team":
+        return TaskClass.INDEPENDENT_RED_TEAM
+    return TaskClass.MARKET_EVIDENCE
+
+
+def deduplicate_idea_theses(theses: list[str]) -> list[str]:
+    seen: set[str] = set()
+    result: list[str] = []
+    for thesis in theses:
+        key = " ".join(thesis.casefold().split())
+        if key not in seen:
+            seen.add(key)
+            result.append(thesis)
+    return result

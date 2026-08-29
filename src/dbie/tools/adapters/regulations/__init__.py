@@ -1,0 +1,1 @@
+"""Authoritative regulator adapter registry."""

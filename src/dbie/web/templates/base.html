@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    {% if refresh_seconds %}<meta http-equiv="refresh" content="{{ refresh_seconds }}">{% endif %}
+    <title>{% block title %}DBIE Dashboard{% endblock %}</title>
+    <link rel="stylesheet" href="{{ request.url_for('static', path='dashboard.css') }}">
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="{{ request.url_for('dashboard_home') }}">
+        <span class="mark">DB</span>
+        <span>Digital Business Idea Engine</span>
+      </a>
+      <span class="read-only">Read-only run viewer</span>
+    </header>
+    <main>{% block content %}{% endblock %}</main>
+  </body>
+</html>

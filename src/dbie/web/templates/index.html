@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}Runs · DBIE Dashboard{% endblock %}
+{% block content %}
+  <section class="hero">
+    <div>
+      <p class="eyebrow">Runtime observability</p>
+      <h1>Run workspace</h1>
+      <p class="lede">Visible crew output and generated deliverables, straight from the canonical run files.</p>
+    </div>
+    {% if runs %}
+      <form class="run-picker" aria-label="Select run">
+        <label for="run-select">Viewing run</label>
+        <select id="run-select" onchange="location.href='/runs/' + encodeURIComponent(this.value)">
+          {% for run in runs %}
+            <option value="{{ run.run_id }}" {% if run.run_id == run_id %}selected{% endif %}>
+              {{ run.run_id }}{% if run.is_current %} · current{% endif %}
+            </option>
+          {% endfor %}
+        </select>
+      </form>
+    {% endif %}
+  </section>
+
+  {% if not runs %}
+    <section class="empty-state">
+      <span class="empty-icon">◇</span>
+      <h2>No runs yet</h2>
+      <p>Start a DBIE run. This page will discover its conversation logs and deliverables automatically.</p>
+    </section>
+  {% else %}
+    <section class="status-strip">
+      {% if refresh_seconds %}<span><i class="pulse"></i> Auto-refreshing every {{ refresh_seconds }} seconds</span>{% else %}<span>Auto-refresh disabled</span>{% endif %}
+      <code>{{ run_id }}</code>
+    </section>
+    <div class="columns">
+      <section class="panel">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">Crew activity</p>
+            <h2>Conversations</h2>
+          </div>
+          <span class="count">{{ conversations|length }}</span>
+        </div>
+        {% if conversations %}
+          <ol class="file-list">
+            {% for file in conversations %}
+              <li>
+                <a href="{{ request.url_for('dashboard_conversation', run_id=run_id, artifact_path=file.relative_path) }}">
+                  <span class="file-icon">›_</span>
+                  <span class="file-copy"><strong>{{ file.relative_path }}</strong><small>{{ file.size }} bytes · {{ file.modified_at.strftime('%H:%M:%S UTC') }}</small></span>
+                  <span class="arrow">→</span>
+                </a>
+              </li>
+            {% endfor %}
+          </ol>
+        {% else %}
+          <p class="panel-empty">No visible conversation output has been persisted for this run.</p>
+        {% endif %}
+      </section>
+
+      <section class="panel">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">Generated artifacts</p>
+            <h2>Deliverables</h2>
+          </div>
+          <span class="count">{{ deliverables|length }}</span>
+        </div>
+        {% if deliverables %}
+          <ol class="file-list">
+            {% for file in deliverables %}
+              <li>
+                <a href="{{ request.url_for('dashboard_deliverable', run_id=run_id, artifact_path=file.relative_path) }}">
+                  <span class="file-icon document">{{ file.suffix[1:]|upper or 'FILE' }}</span>
+                  <span class="file-copy"><strong>{{ file.relative_path }}</strong><small>{{ file.size }} bytes · {{ file.modified_at.strftime('%H:%M:%S UTC') }}</small></span>
+                  <span class="arrow">→</span>
+                </a>
+              </li>
+            {% endfor %}
+          </ol>
+        {% else %}
+          <p class="panel-empty">No deliverables have been generated for this run.</p>
+        {% endif %}
+      </section>
+    </div>
+  {% endif %}
+{% endblock %}

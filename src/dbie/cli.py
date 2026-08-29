@@ -13,6 +13,7 @@ from pydantic import BaseModel
 from sqlalchemy.exc import SQLAlchemyError
 
 from dbie.bootstrap import build_runtime
+from dbie.config import load_settings
 from dbie.domain.models import (
     AutonomousScalability,
     BusinessIdea,
@@ -32,6 +33,7 @@ from dbie.persistence.repositories import CandidateRepository, RunRepository
 from dbie.services.candidate_service import CandidateService
 from dbie.services.fixture_mvp import FixtureMVPExecutor
 from dbie.services.run_service import RunService
+from dbie.web import create_dashboard_app
 
 app = typer.Typer(no_args_is_help=True, help="Digital Business Idea Engine")
 
@@ -183,6 +185,39 @@ def acceptance_run(
             "dossiers": flow.state.artifacts["dossier_paths"],
             "checkpoint": str(checkpoint_store.path_for(run_id)),
         }
+    )
+
+
+@app.command("dashboard")
+def dashboard_command(
+    host: Annotated[str | None, typer.Option(help="Dashboard bind address.")] = None,
+    port: Annotated[int | None, typer.Option(min=1, max=65535)] = None,
+    runs_dir: Annotated[
+        Path | None, typer.Option(help="Filesystem directory containing DBIE runs.")
+    ] = None,
+    refresh: Annotated[
+        int | None, typer.Option(min=0, max=60, help="Page refresh interval in seconds.")
+    ] = None,
+    config: Annotated[Path, typer.Option(exists=True)] = Path("config/default.yaml"),
+) -> None:
+    """Serve the read-only local run dashboard."""
+    import uvicorn
+
+    settings = load_settings(config)
+    viewer = settings.web_viewer
+    application = create_dashboard_app(
+        runs_dir or viewer.runs_dir,
+        current_run=viewer.current_run,
+        auto_refresh_seconds=(
+            viewer.auto_refresh_seconds if refresh is None else refresh
+        ),
+        max_text_bytes=viewer.max_text_bytes,
+    )
+    uvicorn.run(
+        application,
+        host=host or viewer.host,
+        port=port or viewer.port,
+        log_level=settings.log_level.lower(),
     )
 
 

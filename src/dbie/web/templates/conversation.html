@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}{{ artifact_path }} · DBIE{% endblock %}
+{% block content %}
+  <nav class="breadcrumb"><a href="{{ request.url_for('dashboard_run', run_id=run_id) }}">Run {{ run_id }}</a><span>/</span><span>conversations</span></nav>
+  <section class="reader">
+    <div class="reader-heading">
+      <div><p class="eyebrow">Visible crew output</p><h1>{{ artifact_path }}</h1></div>
+      <span class="live"><i class="pulse"></i> Live</span>
+    </div>
+    <pre class="conversation">{{ content }}</pre>
+  </section>
+{% endblock %}

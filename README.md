@@ -26,6 +26,20 @@ eligibility/evidence/red-team gates, creates a pairwise portfolio result, and
 writes resumable state and dossiers under `runs/<run-id>/`. It is the
 reproducibility acceptance path, not a claim of newly collected market evidence.
 
+## Run dashboard
+
+The dashboard is a read-only filesystem viewer for persisted crew-visible output
+and deliverables. Start it locally and open <http://127.0.0.1:8080>:
+
+```bash
+uv run dbie dashboard
+```
+
+It follows `runs/current`, falls back to the newest run, and refreshes active
+conversation views every three seconds. The documented default binds all local
+interfaces; use `--host 127.0.0.1` to restrict it to the host. No mutation
+routes, database coupling, model calls, or hidden model reasoning are exposed.
+
 ## v0.6 OSS stack
 
 CrewAI sees exactly ten stable logical tools. Their implementations remain

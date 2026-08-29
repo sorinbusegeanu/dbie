@@ -24,5 +24,9 @@ def test_full_mvp_fixture_runs_without_manual_intermediate_edits(tmp_path) -> No
     assert flow.state.completed_stages == STAGE_ORDER
     assert len(flow.state.finalist_ids) == 2
     assert len(flow.state.artifacts["dossier_paths"]) == 4
+    run_workspace = tmp_path / "artifacts" / run_id
+    assert (run_workspace / "conversations" / "activity.log").is_file()
+    assert len(list((run_workspace / "deliverables").glob("*.md"))) == 2
+    assert (tmp_path / "artifacts" / "current").resolve() == run_workspace.resolve()
     assert RunRepository(database).get(run_id).status.value == "COMPLETED"
     assert checkpoints.load(run_id).artifacts["raw_idea_count"] == 50

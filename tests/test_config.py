@@ -5,8 +5,12 @@ from dbie.models.roles import ModelRole
 
 
 def test_requested_ollama_models_are_exact() -> None:
-    models = load_models_config(load_settings())
+    settings = load_settings()
+    models = load_models_config(settings)
 
+    assert settings.web_viewer.host == "0.0.0.0"
+    assert settings.web_viewer.runs_dir == Path("runs")
+    assert settings.web_viewer.auto_refresh_seconds == 3
     assert models.active_provider == "ollama"
     assert models.profiles[models.default_profile].model == "gpt-oss:20b-64k"
     assert [models.profiles[name].model for name in models.fallback_profiles] == [

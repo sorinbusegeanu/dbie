@@ -84,6 +84,16 @@ class ModelsConfig(BaseModel):
                 )
 
 
+class WebViewerSettings(BaseModel):
+    enabled: bool = True
+    host: str = "0.0.0.0"
+    port: int = Field(default=8080, ge=1, le=65535)
+    runs_dir: Path = Path("runs")
+    current_run: str = "current"
+    auto_refresh_seconds: int = Field(default=3, ge=0, le=60)
+    max_text_bytes: int = Field(default=5_000_000, ge=1)
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="DBIE_",
@@ -99,6 +109,7 @@ class Settings(BaseSettings):
     models_config: Path = Path("config/models.yaml")
     tools_config: Path = Path("config/tools.yaml")
     policies_config: Path = Path("config/policies.yaml")
+    web_viewer: WebViewerSettings = Field(default_factory=WebViewerSettings)
 
 
 def _yaml_mapping(path: Path) -> dict[str, Any]:

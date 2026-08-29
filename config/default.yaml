@@ -6,4 +6,11 @@ json_logs: false
 models_config: config/models.yaml
 tools_config: config/tools.yaml
 policies_config: config/policies.yaml
-
+web_viewer:
+  enabled: true
+  host: 0.0.0.0
+  port: 8080
+  runs_dir: runs
+  current_run: current
+  auto_refresh_seconds: 3
+  max_text_bytes: 5000000

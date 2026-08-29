@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}{{ artifact_path }} · DBIE{% endblock %}
+{% block content %}
+  <nav class="breadcrumb"><a href="{{ request.url_for('dashboard_run', run_id=run_id) }}">Run {{ run_id }}</a><span>/</span><span>deliverables</span></nav>
+  <section class="reader">
+    <div class="reader-heading"><div><p class="eyebrow">Generated deliverable</p><h1>{{ artifact_path }}</h1></div></div>
+    {% if mode == 'markdown' %}<article class="markdown-body">{{ content|safe }}</article>{% else %}<pre class="conversation">{{ content }}</pre>{% endif %}
+  </section>
+{% endblock %}

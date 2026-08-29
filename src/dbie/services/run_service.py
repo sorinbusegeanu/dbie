@@ -7,6 +7,7 @@ from dbie.config import Settings
 from dbie.domain.enums import RunStatus
 from dbie.domain.models import Run, new_id
 from dbie.persistence.repositories import RunRepository
+from dbie.services.run_workspace import RunWorkspaceManager
 
 
 class RunService:
@@ -23,7 +24,9 @@ class RunService:
             status=RunStatus.CREATED,
             configuration_hash=self._configuration_hash(),
         )
-        return self.repository.create(run)
+        persisted = self.repository.create(run)
+        RunWorkspaceManager(self.settings.run_directory).ensure(identifier)
+        return persisted
 
     def resume(self, run_id: str) -> Run:
         return self.repository.set_status(run_id, RunStatus.RUNNING)

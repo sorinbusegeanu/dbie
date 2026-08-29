@@ -34,6 +34,7 @@ from dbie.persistence.repositories import (
 from dbie.reporting.dossier import AssumptionSummary, Dossier, write_dossier
 from dbie.services.assumption_pipeline import decompose_idea, validate_assumption
 from dbie.services.candidate_service import CandidateService
+from dbie.services.run_workspace import RunWorkspaceManager
 from dbie.services.tournament import rank_matches
 from dbie.services.validation import RedTeamFinding, validation_decision
 
@@ -49,13 +50,18 @@ class FixtureMVPExecutor:
         self.assumptions = AssumptionRepository(database)
         self.evidence = EvidenceRepository(database)
         self.matches = PairwiseMatchRepository(database)
+        self.workspaces = RunWorkspaceManager(output_directory)
 
     def execute(self, stage: StageName, state: PipelineState) -> dict[str, Any]:
+        self.workspaces.append_activity(state.run_id, f"stage {stage.value}: started")
         handler = getattr(self, f"_{stage.value}")
-        return handler(state)
+        result = handler(state)
+        self.workspaces.append_activity(state.run_id, f"stage {stage.value}: completed")
+        return result
 
     def _initialize_run(self, state: PipelineState) -> dict[str, Any]:
         self.database.initialize()
+        self.workspaces.ensure(state.run_id)
         self.runs.create(
             Run(
                 id=state.run_id,
@@ -232,7 +238,7 @@ class FixtureMVPExecutor:
                 reason_codes=["HARD_GATES_PASSED"],
             )
             markdown, structured = write_dossier(
-                dossier, self.output_directory / state.run_id / "dossiers"
+                dossier, self.output_directory / state.run_id / "deliverables"
             )
             paths.extend((str(markdown), str(structured)))
         return {"artifacts": {"dossier_paths": paths}}

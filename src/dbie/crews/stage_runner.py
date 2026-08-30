@@ -139,23 +139,14 @@ class CrewAIStageRunner:
             assumption_id=request.assumption_id,
         )
         last_error: Exception | None = None
-        required_names = ", ".join(item.value for item in request.required_tools)
         for attempt in range(2):
             agent = self.catalog.build_agent(
                 request.spec,
                 context,
                 selection=phase.selection,
             )
-            recovery = ""
-            if attempt:
-                recovery = (
-                    "\nRECOVERY ATTEMPT: the prior response failed a hard runtime "
-                    "contract. Return every required typed field with non-empty valid "
-                    "values. Call every mandatory tool before the final answer"
-                    + (f": {required_names}." if required_names else ".")
-                )
             task = Task(
-                description=request.description + recovery,
+                description=self._task_description(request, attempt),
                 expected_output=request.expected_output,
                 agent=agent,
                 output_pydantic=request.output_model,
@@ -191,6 +182,28 @@ class CrewAIStageRunner:
             f"CrewAI task {request.task_id} did not return "
             f"{request.output_model.__name__} after 2 attempts"
         ) from last_error
+
+    @staticmethod
+    def _task_description(
+        request: CrewTaskRequest[Any], attempt: int
+    ) -> str:
+        description = request.description
+        if request.required_tools:
+            required_names = ", ".join(
+                item.value for item in request.required_tools
+            )
+            description += (
+                "\nMANDATORY TOOL CONTRACT: successfully call every required real "
+                f"tool before returning the final answer: {required_names}. Use only "
+                "arguments declared in each tool's schema."
+            )
+        if attempt:
+            description += (
+                "\nRECOVERY ATTEMPT: the prior response failed a hard runtime "
+                "contract. Return every required typed field with non-empty valid "
+                "values and satisfy the mandatory tool contract."
+            )
+        return description
 
     def _verify_required_tools(self, request: CrewTaskRequest[Any]) -> None:
         if not request.required_tools:

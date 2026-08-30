@@ -56,3 +56,24 @@ def test_live_stage_accepts_successful_attributed_required_tool_call() -> None:
     )
 
     _runner([record])._verify_required_tools(_request(ToolName.WEB_SEARCH))
+
+
+def test_initial_task_prompt_discloses_every_required_tool() -> None:
+    description = _runner([])._task_description(
+        _request(ToolName.WEB_SEARCH, ToolName.SEARCH_COMMUNITY),
+        attempt=0,
+    )
+
+    assert "MANDATORY TOOL CONTRACT" in description
+    assert "web_search, search_community" in description
+    assert "arguments declared in each tool's schema" in description
+
+
+def test_retry_prompt_preserves_mandatory_tool_contract() -> None:
+    description = _runner([])._task_description(
+        _request(ToolName.SEARCH_COMMUNITY),
+        attempt=1,
+    )
+
+    assert "search_community" in description
+    assert "RECOVERY ATTEMPT" in description

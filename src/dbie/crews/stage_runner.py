@@ -23,7 +23,7 @@ from dbie.models.phase_scheduler import (
     ModelPhaseScheduler,
     ModelPhaseTask,
 )
-from dbie.models.roles import ModelRole
+from dbie.models.roles import ModelRole, ModelSelection
 from dbie.services.run_workspace import RunWorkspaceManager
 from dbie.tools.crewai_tools import CrewAIToolContext
 from dbie.tools.contracts import ToolName
@@ -140,10 +140,15 @@ class CrewAIStageRunner:
         )
         last_error: Exception | None = None
         for attempt in range(2):
+            selection = self._selection_for_attempt(
+                request.spec.model_role,
+                phase.selection,
+                attempt,
+            )
             agent = self.catalog.build_agent(
                 request.spec,
                 context,
-                selection=phase.selection,
+                selection=selection,
             )
             task = Task(
                 description=self._task_description(request, attempt),
@@ -176,12 +181,30 @@ class CrewAIStageRunner:
                 self.workspaces.append_activity(
                     run_id,
                     f"task {request.task_id}: attempt {attempt + 1} failed "
-                    f"({type(exc).__name__})",
+                    f"with {selection.value} ({type(exc).__name__}: {exc})",
                 )
         raise ValueError(
             f"CrewAI task {request.task_id} did not return "
-            f"{request.output_model.__name__} after 2 attempts"
+            f"{request.output_model.__name__} after 2 attempts; last error: "
+            f"{type(last_error).__name__}: {last_error}"
         ) from last_error
+
+    def _selection_for_attempt(
+        self,
+        role: ModelRole,
+        initial: ModelSelection,
+        attempt: int,
+    ) -> ModelSelection:
+        if attempt == 0:
+            return initial
+        mapping = self.catalog.llm.router.config.roles[role]
+        if mapping.challenger_profile is None:
+            return initial
+        return (
+            ModelSelection.CHALLENGER
+            if initial is ModelSelection.PRIMARY
+            else ModelSelection.PRIMARY
+        )
 
     @staticmethod
     def _task_description(

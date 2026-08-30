@@ -45,7 +45,7 @@ def test_scheduler_batches_model_affine_tasks_between_barriers() -> None:
         ModelRole.THINKER,
     ]
     assert [len(phase.tasks) for phase in phases] == [2, 2, 1]
-    assert phases[0].resolved_model_id == "ministral-3:14b-64k"
+    assert phases[0].resolved_model_id == "deepseek-r1:14b-48k"
     assert phases[1].resolved_model_id == "qwen3:14b-64k"
 
 

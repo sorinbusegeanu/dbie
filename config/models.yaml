@@ -50,11 +50,11 @@ profiles:
     active_concurrency: 1
 roles:
   THINKER:
-    primary_profile: ministral_3_14b_64k
-    challenger_profile: gpt_oss_20b_64k
+    primary_profile: deepseek_r1_14b_48k
+    challenger_profile: qwen3_14b_64k
     fallback_profiles: [qwen3_14b_64k]
-    context_tokens: 16384
-    thinking_mode: medium
+    context_tokens: 32768
+    thinking_mode: high
     challenger_fraction: 0.10
   DOER:
     primary_profile: qwen3_14b_64k

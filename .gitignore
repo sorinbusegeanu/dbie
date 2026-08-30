@@ -2,7 +2,6 @@
 __pycache__/
 .pytest_cache/
 *.py[cod]
-runs/*.sqlite3
-runs/*.sqlite3-*
+/runs/
+/dist/
 .env
-

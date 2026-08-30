@@ -28,6 +28,8 @@ source before it can support an assumption.
 `search_community` accepts:
 
 - `query`;
+- optional typed `intent`: `DISCOVERY`, `SUPPORT`, `CONTRADICT`, `COMPETITOR`,
+  `MARKET_SIZE`, `PRICING`, or `DISTRIBUTION` (defaults to `DISCOVERY`);
 - optional `platforms`: `STACK_EXCHANGE`, `HACKER_NEWS`, `GITHUB`, or
   `REDDIT_INDEX`;
 - optional `date_from`;

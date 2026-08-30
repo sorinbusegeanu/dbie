@@ -108,7 +108,8 @@ See [the community adapter amendment](docs/Community_Search_Adapter.md).
 
 ## Ollama models
 
-`gpt-oss:20b-64k` and `ministral-3:14b-64k` are configured local profiles.
+`deepseek-r1:14b-48k`, `qwen3:14b-64k`, `gpt-oss:20b-64k`, and
+`ministral-3:14b-64k` are configured local profiles.
 DBIE never pulls models during doctor or live execution. Verify the existing
 local tags with:
 
@@ -122,9 +123,9 @@ uv run dbie doctor
 The v0.7 NemoClaw model-phase design is implemented above the provider router.
 Crews declare a logical role rather than a model name:
 
-- `THINKER` → `ministral-3:14b-64k` for synthesis, assumptions,
-  reconciliation, experiment design, and portfolio reasoning; GPT-OSS is the
-  independent challenger
+- `THINKER` → `deepseek-r1:14b-48k` for synthesis, assumptions,
+  reconciliation, experiment design, and portfolio reasoning;
+  `qwen3:14b-64k` in thinking mode is the challenger/fallback
 - `DOER` → `qwen3:14b-64k` for high-volume research, extraction, and tool use;
   `ministral-3:14b-64k` is the challenger/fallback
 - `BUILDER` → `qwen3:14b-64k` for later governed MVP implementation/test loops

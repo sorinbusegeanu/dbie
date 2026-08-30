@@ -44,6 +44,15 @@ class FetchPageInput(ToolInput):
 
 class SearchCommunityInput(ToolInput):
     query: str = Field(min_length=1)
+    intent: Literal[
+        "DISCOVERY",
+        "SUPPORT",
+        "CONTRADICT",
+        "COMPETITOR",
+        "MARKET_SIZE",
+        "PRICING",
+        "DISTRIBUTION",
+    ] = "DISCOVERY"
     platforms: list[
         Literal["STACK_EXCHANGE", "HACKER_NEWS", "GITHUB", "REDDIT_INDEX"]
     ] = Field(default_factory=list)

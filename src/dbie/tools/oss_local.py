@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from dataclasses import dataclass
 from typing import Any
 
 from dbie.domain.models import EvidenceItem
@@ -15,12 +16,18 @@ from dbie.persistence.repositories import (
 )
 from dbie.persistence.vector import EmbeddingService, SemanticMemoryRepository
 from dbie.tools.adapters.company_public_sources import CompanyPublicSourcesAdapter
+from dbie.tools.adapters.community import (
+    CommunitySearchAdapter,
+    GitHubCommunityAdapter,
+    HackerNewsCommunityAdapter,
+    SearchIndexLeadAdapter,
+    StackExchangeCommunityAdapter,
+)
 from dbie.tools.adapters.crawl4ai import Crawl4AIAdapter
 from dbie.tools.adapters.docker_python import DockerPythonAdapter
 from dbie.tools.adapters.docling import DoclingAdapter
 from dbie.tools.adapters.pgvector import PgVectorMemoryAdapter
 from dbie.tools.adapters.playwright import PlaywrightAdapter
-from dbie.tools.adapters.praw_reddit import PrawRedditAdapter
 from dbie.tools.adapters.pygithub import PyGithubAdapter
 from dbie.tools.adapters.pymupdf import PyMuPDFAdapter
 from dbie.tools.adapters.registry import AdapterRegistry
@@ -34,6 +41,7 @@ from dbie.tools.adapters.regulations.sec import build_sec_adapter
 from dbie.tools.adapters.searxng import SearXNGAdapter
 from dbie.tools.adapters.sqlalchemy_db import SQLAlchemyDatabaseAdapter
 from dbie.tools.adapters.trafilatura import TrafilaturaAdapter
+from dbie.tools.audit import ToolAuditSink
 from dbie.tools.contracts import ToolName
 from dbie.tools.gateway import ToolGateway
 from dbie.tools.permissions import ToolPermissionPolicy
@@ -41,23 +49,64 @@ from dbie.tools.routing.document_router import DocumentRouter
 from dbie.tools.routing.fetch_page_router import FetchPageRouter
 
 
+# Compose publishes Crawl4AI on host loopback only. Deployments should override
+# this development credential with DBIE_CRAWL4AI_API_TOKEN.
+_LOCAL_CRAWL4AI_API_TOKEN = "dbie-local-crawl4ai-token-v1"
+
+
+@dataclass(frozen=True)
+class OSSLocalStack:
+    gateway: ToolGateway
+    memory: PgVectorStore | SemanticMemoryRepository
+    embeddings: EmbeddingService
+
+
 def build_oss_gateway(
     *,
     database: Database,
     embeddings: EmbeddingService,
     tools_config: dict[str, Any],
+    audit: ToolAuditSink | None = None,
 ) -> ToolGateway:
+    return build_oss_stack(
+        database=database,
+        embeddings=embeddings,
+        tools_config=tools_config,
+        audit=audit,
+    ).gateway
+
+
+def build_oss_stack(
+    *,
+    database: Database,
+    embeddings: EmbeddingService,
+    tools_config: dict[str, Any],
+    audit: ToolAuditSink | None = None,
+) -> OSSLocalStack:
     endpoints = tools_config.get("adapter_endpoints", {})
     searxng = SearXNGAdapter(endpoints.get("searxng", "http://127.0.0.1:8080"))
     trafilatura = TrafilaturaAdapter()
-    crawl4ai = Crawl4AIAdapter(endpoints.get("crawl4ai", "http://127.0.0.1:11235"))
+    crawl4ai = Crawl4AIAdapter(
+        endpoints.get("crawl4ai", "http://127.0.0.1:11235"),
+        api_token=(
+            os.getenv("CRAWL4AI_API_TOKEN")
+            or os.getenv("DBIE_CRAWL4AI_API_TOKEN")
+            or _LOCAL_CRAWL4AI_API_TOKEN
+        ),
+    )
     playwright = PlaywrightAdapter()
     fetch_router = FetchPageRouter([trafilatura, crawl4ai, playwright])
 
-    praw_client = _praw_client()
-    reddit = PrawRedditAdapter(praw_client)
     github = PyGithubAdapter(_github_client())
-    companies = CompanyPublicSourcesAdapter(searxng)
+    community = CommunitySearchAdapter(
+        [
+            StackExchangeCommunityAdapter(),
+            HackerNewsCommunityAdapter(),
+            GitHubCommunityAdapter(github),
+            SearchIndexLeadAdapter(searxng),
+        ]
+    )
+    companies = CompanyPublicSourcesAdapter(searxng, page_adapter=fetch_router)
     regulations = RegulatoryAdapterRegistry(
         [
             EurLexAdapter(),
@@ -103,6 +152,18 @@ def build_oss_gateway(
                 "evidence_id": parameters.get("evidence_id"),
             },
             "SAVE_EVALUATION": lambda parameters: parameters,
+            "LIST_IDEAS": lambda parameters: [
+                item.model_dump(mode="json")
+                for item in candidates.for_run(str(parameters["run_id"]))
+            ],
+            "LIST_ASSUMPTIONS": lambda parameters: [
+                item.model_dump(mode="json")
+                for item in assumptions.for_run(str(parameters["run_id"]))
+            ],
+            "LIST_EVIDENCE": lambda parameters: [
+                item.model_dump(mode="json")
+                for item in evidence.for_run(str(parameters["run_id"]))
+            ],
         },
     )
     if database.engine.dialect.name == "postgresql":
@@ -113,11 +174,12 @@ def build_oss_gateway(
             dimension=int(embedding_config.get("dimension", 384)),
         )
         vector_store.initialize()
-        memory = PgVectorMemoryAdapter(vector_store)
+        memory_store: PgVectorStore | SemanticMemoryRepository = vector_store
     else:
-        memory = PgVectorMemoryAdapter(
-            SemanticMemoryRepository(database=database, embeddings=embeddings)
+        memory_store = SemanticMemoryRepository(
+            database=database, embeddings=embeddings
         )
+    memory = PgVectorMemoryAdapter(memory_store)
 
     registry = AdapterRegistry()
     for adapter in (
@@ -126,7 +188,7 @@ def build_oss_gateway(
         crawl4ai,
         playwright,
         fetch_router,
-        reddit,
+        community,
         companies,
         github,
         regulations,
@@ -142,7 +204,7 @@ def build_oss_gateway(
     routes = {
         ToolName.WEB_SEARCH: searxng.name,
         ToolName.FETCH_PAGE: fetch_router.name,
-        ToolName.SEARCH_REDDIT: reddit.name,
+        ToolName.SEARCH_COMMUNITY: community.name,
         ToolName.SEARCH_COMPANIES: companies.name,
         ToolName.SEARCH_GITHUB: github.name,
         ToolName.SEARCH_REGULATIONS: regulations.name,
@@ -151,28 +213,16 @@ def build_oss_gateway(
         ToolName.DATABASE_QUERY: database_adapter.name,
         ToolName.SEMANTIC_MEMORY_SEARCH: memory.name,
     }
-    return ToolGateway(
+    gateway = ToolGateway(
         registry=registry,
         routes=routes,
         permissions=ToolPermissionPolicy(tools_config.get("actor_permissions", {})),
+        audit=audit,
     )
-
-
-def _praw_client() -> Any | None:
-    required = (
-        os.getenv("REDDIT_CLIENT_ID"),
-        os.getenv("REDDIT_CLIENT_SECRET"),
-        os.getenv("REDDIT_USER_AGENT"),
-    )
-    if not all(required):
-        return None
-    import praw
-
-    return praw.Reddit(
-        client_id=required[0],
-        client_secret=required[1],
-        user_agent=required[2],
-        check_for_async=False,
+    return OSSLocalStack(
+        gateway=gateway,
+        memory=memory_store,
+        embeddings=embeddings,
     )
 
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from importlib.metadata import PackageNotFoundError, version
+from pathlib import Path
 from typing import Any
 
 from dbie.persistence.vector import (
@@ -15,9 +16,14 @@ class FastEmbedBGEEmbeddingService(EmbeddingService):
         self,
         model_id: str = "BAAI/bge-small-en-v1.5",
         model: Any | None = None,
+        *,
+        cache_dir: Path | None = None,
+        local_files_only: bool = True,
     ) -> None:
         self.model_id = model_id
         self._model = model
+        self.cache_dir = cache_dir
+        self.local_files_only = local_files_only
         self.normalization_version = "ws-v1"
 
     def available(self) -> bool:
@@ -33,7 +39,10 @@ class FastEmbedBGEEmbeddingService(EmbeddingService):
             from fastembed import TextEmbedding
 
             model = TextEmbedding(
-                model_name=self.model_id, providers=["CPUExecutionProvider"]
+                model_name=self.model_id,
+                providers=["CPUExecutionProvider"],
+                cache_dir=str(self.cache_dir) if self.cache_dir else None,
+                local_files_only=self.local_files_only,
             )
             self._model = model
         normalized = [normalize_embedding_text(text) for text in texts]

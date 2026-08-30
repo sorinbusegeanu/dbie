@@ -7,7 +7,7 @@ gateway:
 tools:
   - web_search
   - fetch_page
-  - search_reddit
+  - search_community
   - search_companies
   - search_github
   - search_regulations
@@ -18,7 +18,7 @@ tools:
 adapters:
   web_search: searxng
   fetch_page: [trafilatura, crawl4ai, playwright]
-  search_reddit: praw
+  search_community: community_search
   search_companies: company_public_sources
   search_github: pygithub
   search_regulations: regulatory_registry
@@ -27,7 +27,7 @@ adapters:
   database_query: sqlalchemy_db
   semantic_memory_search: pgvector
 adapter_endpoints:
-  searxng: http://127.0.0.1:8080
+  searxng: http://127.0.0.1:8888
   crawl4ai: http://127.0.0.1:11235
 routing:
   fetch_page:
@@ -65,6 +65,11 @@ embedding_profile:
   dimension: 384
   device: cpu
   normalization_version: ws-v1
+mvp:
+  target_signals: 500
+  target_raw_ideas: 250
+  max_validation_candidates: 25
+  strict_generation_targets: true
 regulator_registry:
   EU: eurlex
   CH: finma
@@ -75,14 +80,14 @@ regulator_registry:
 actor_permissions:
   FlowController: [database_query, semantic_memory_search]
   TrendScout: [web_search, fetch_page, search_companies, search_github, search_regulations, read_document, database_query, semantic_memory_search]
-  PainPointMiner: [web_search, fetch_page, search_reddit, read_document, database_query, semantic_memory_search]
+  PainPointMiner: [web_search, fetch_page, search_community, read_document, database_query, semantic_memory_search]
   IdeaGenerator: [database_query, semantic_memory_search]
   AssumptionAuditor: [database_query, semantic_memory_search]
-  EvidenceResearcher: [web_search, fetch_page, search_reddit, search_companies, search_github, search_regulations, read_document, database_query, semantic_memory_search]
-  MarketAnalyst: [web_search, fetch_page, search_reddit, search_companies, read_document, python_execute, database_query, semantic_memory_search]
+  EvidenceResearcher: [web_search, fetch_page, search_community, search_companies, search_github, search_regulations, read_document, database_query, semantic_memory_search]
+  MarketAnalyst: [web_search, fetch_page, search_community, search_companies, read_document, python_execute, database_query, semantic_memory_search]
   TechnicalAnalyst: [web_search, fetch_page, search_github, read_document, python_execute, database_query, semantic_memory_search]
   EconomicsAnalyst: [web_search, fetch_page, search_companies, read_document, python_execute, database_query, semantic_memory_search]
-  RedTeam: [web_search, fetch_page, search_reddit, search_companies, search_github, search_regulations, read_document, python_execute, database_query, semantic_memory_search]
+  RedTeam: [web_search, fetch_page, search_community, search_companies, search_github, search_regulations, read_document, python_execute, database_query, semantic_memory_search]
   IndustryAnalyst: [web_search, search_companies]
   RegulatoryScout: [search_regulations, read_document]
   TechnologyScout: [search_github, web_search]
@@ -95,13 +100,20 @@ actor_permissions:
   ServicestoSoftwareLens: [semantic_memory_search, database_query]
   CapabilityInversionLens: [semantic_memory_search, database_query]
   CrossIndustryAnalogyLens: [semantic_memory_search, database_query]
-  DemandValidator: [database_query, web_search, fetch_page]
-  DistributionAnalyst: [database_query, web_search, fetch_page]
-  CompetitiveAnalyst: [database_query, web_search, fetch_page]
-  RegulatoryValidator: [database_query, web_search, fetch_page]
-  MarketSkeptic: [database_query, web_search]
-  IncumbentResponseAnalyst: [database_query, web_search]
-  CommoditizationAnalyst: [database_query, web_search]
-  DistributionSkeptic: [database_query, web_search]
-  EconomicsSkeptic: [database_query, web_search]
-  AutomationOperationsSkeptic: [database_query, web_search]
+  OpportunitySynthesizer: [database_query, semantic_memory_search]
+  AssumptionDecomposer: [database_query, semantic_memory_search]
+  ResearchPlanner: [database_query, semantic_memory_search]
+  EvidenceReconciler: [database_query, semantic_memory_search]
+  ExperimentDesigner: [database_query, semantic_memory_search, python_execute]
+  PortfolioReasoner: [database_query, semantic_memory_search, python_execute]
+  PortfolioJudge: [database_query, semantic_memory_search, python_execute]
+  DemandValidator: [database_query, web_search, fetch_page, search_community]
+  DistributionAnalyst: [database_query, web_search, fetch_page, search_community, search_companies]
+  CompetitiveAnalyst: [database_query, web_search, fetch_page, search_companies, search_github]
+  RegulatoryValidator: [database_query, web_search, fetch_page, search_regulations, read_document]
+  MarketSkeptic: [database_query, web_search, fetch_page, search_companies, semantic_memory_search]
+  IncumbentResponseAnalyst: [database_query, web_search, fetch_page, search_companies, semantic_memory_search]
+  CommoditizationAnalyst: [database_query, web_search, fetch_page, search_companies, semantic_memory_search]
+  DistributionSkeptic: [database_query, web_search, fetch_page, search_companies, semantic_memory_search]
+  EconomicsSkeptic: [database_query, web_search, fetch_page, search_companies, semantic_memory_search]
+  AutomationOperationsSkeptic: [database_query, web_search, fetch_page, search_companies, semantic_memory_search]

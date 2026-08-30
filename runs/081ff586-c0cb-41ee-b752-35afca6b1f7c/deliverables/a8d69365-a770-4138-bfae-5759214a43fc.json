@@ -1,0 +1,285 @@
+{
+  "run_id": "081ff586-c0cb-41ee-b752-35afca6b1f7c",
+  "candidate_id": "a8d69365-a770-4138-bfae-5759214a43fc",
+  "title": "Regulatory Evidence Copilot",
+  "thesis": "Automate costly evidence review for regulated teams.",
+  "description": "Regulatory Evidence Copilot is a software opportunity for Regulated mid-market companies that need to translate changing rules and policies into reliable operational work. The product would ingest official, machine-readable material, identify relevant obligations, map them to a customer's workflow, and produce traceable recommendations for expert review. Its primary buyer is the Chief compliance officer, while Compliance analyst teams use the service through a self-service application and API. The value comes from reducing repetitive evidence review, shortening response cycles, and preserving an auditable source trail. Subscription and usage-based pricing could support the delivery model. The system targets high automation and low marginal human effort, with people involved mainly for consequential exceptions. Initial validation should test buyer urgency, output accuracy, integration effort, repeat usage, and willingness to pay before committing resources to a production build. The proposed service remains fully digital in acquisition, delivery, support, payment, operation, and geographic scaling.",
+  "why_now": "Official rules are increasingly machine-readable.",
+  "customer": "Regulated mid-market companies",
+  "buyer": "Chief compliance officer",
+  "assumptions": [
+    {
+      "statement": "The target problem exists and is severe",
+      "status": "RESEARCH_SUPPORTED",
+      "evidence_for": [
+        {
+          "title": "Independent publisher 1 — Measured primary evidence",
+          "summary": "Independent fixture evidence supports the bounded claim.",
+          "publisher": "Independent publisher 1",
+          "tier": "PRIMARY"
+        },
+        {
+          "title": "Independent publisher 2 — Measured primary evidence",
+          "summary": "Independent fixture evidence supports the bounded claim.",
+          "publisher": "Independent publisher 2",
+          "tier": "PRIMARY"
+        }
+      ],
+      "evidence_against": [],
+      "independent_lineages": 2
+    },
+    {
+      "statement": "An identifiable buyer owns the problem",
+      "status": "RESEARCH_SUPPORTED",
+      "evidence_for": [
+        {
+          "title": "Independent publisher 1 — Measured primary evidence",
+          "summary": "Independent fixture evidence supports the bounded claim.",
+          "publisher": "Independent publisher 1",
+          "tier": "PRIMARY"
+        },
+        {
+          "title": "Independent publisher 2 — Measured primary evidence",
+          "summary": "Independent fixture evidence supports the bounded claim.",
+          "publisher": "Independent publisher 2",
+          "tier": "PRIMARY"
+        }
+      ],
+      "evidence_against": [],
+      "independent_lineages": 2
+    },
+    {
+      "statement": "The buyer is willing to pay",
+      "status": "RESEARCH_SUPPORTED",
+      "evidence_for": [
+        {
+          "title": "Independent publisher 1 — Measured primary evidence",
+          "summary": "Independent fixture evidence supports the bounded claim.",
+          "publisher": "Independent publisher 1",
+          "tier": "PRIMARY"
+        },
+        {
+          "title": "Independent publisher 2 — Measured primary evidence",
+          "summary": "Independent fixture evidence supports the bounded claim.",
+          "publisher": "Independent publisher 2",
+          "tier": "PRIMARY"
+        }
+      ],
+      "evidence_against": [],
+      "independent_lineages": 2
+    },
+    {
+      "statement": "The buyer is reachable through a repeatable digital channel",
+      "status": "RESEARCH_SUPPORTED",
+      "evidence_for": [
+        {
+          "title": "Independent publisher 1 — Measured primary evidence",
+          "summary": "Independent fixture evidence supports the bounded claim.",
+          "publisher": "Independent publisher 1",
+          "tier": "PRIMARY"
+        },
+        {
+          "title": "Independent publisher 2 — Measured primary evidence",
+          "summary": "Independent fixture evidence supports the bounded claim.",
+          "publisher": "Independent publisher 2",
+          "tier": "PRIMARY"
+        }
+      ],
+      "evidence_against": [],
+      "independent_lineages": 2
+    },
+    {
+      "statement": "The product is technically feasible",
+      "status": "RESEARCH_SUPPORTED",
+      "evidence_for": [
+        {
+          "title": "Independent publisher 1 — Measured primary evidence",
+          "summary": "Independent fixture evidence supports the bounded claim.",
+          "publisher": "Independent publisher 1",
+          "tier": "PRIMARY"
+        },
+        {
+          "title": "Independent publisher 2 — Measured primary evidence",
+          "summary": "Independent fixture evidence supports the bounded claim.",
+          "publisher": "Independent publisher 2",
+          "tier": "PRIMARY"
+        }
+      ],
+      "evidence_against": [],
+      "independent_lineages": 2
+    },
+    {
+      "statement": "At least 90% of delivery can be automated",
+      "status": "RESEARCH_SUPPORTED",
+      "evidence_for": [
+        {
+          "title": "Independent publisher 1 — Measured primary evidence",
+          "summary": "Independent fixture evidence supports the bounded claim.",
+          "publisher": "Independent publisher 1",
+          "tier": "PRIMARY"
+        },
+        {
+          "title": "Independent publisher 2 — Measured primary evidence",
+          "summary": "Independent fixture evidence supports the bounded claim.",
+          "publisher": "Independent publisher 2",
+          "tier": "PRIMARY"
+        }
+      ],
+      "evidence_against": [],
+      "independent_lineages": 2
+    },
+    {
+      "statement": "Marginal human burden stays low at 10x scale",
+      "status": "RESEARCH_SUPPORTED",
+      "evidence_for": [
+        {
+          "title": "Independent publisher 1 — Measured primary evidence",
+          "summary": "Independent fixture evidence supports the bounded claim.",
+          "publisher": "Independent publisher 1",
+          "tier": "PRIMARY"
+        },
+        {
+          "title": "Independent publisher 2 — Measured primary evidence",
+          "summary": "Independent fixture evidence supports the bounded claim.",
+          "publisher": "Independent publisher 2",
+          "tier": "PRIMARY"
+        }
+      ],
+      "evidence_against": [],
+      "independent_lineages": 2
+    },
+    {
+      "statement": "Unit economics can sustain the delivery model",
+      "status": "RESEARCH_SUPPORTED",
+      "evidence_for": [
+        {
+          "title": "Independent publisher 1 — Measured primary evidence",
+          "summary": "Independent fixture evidence supports the bounded claim.",
+          "publisher": "Independent publisher 1",
+          "tier": "PRIMARY"
+        },
+        {
+          "title": "Independent publisher 2 — Measured primary evidence",
+          "summary": "Independent fixture evidence supports the bounded claim.",
+          "publisher": "Independent publisher 2",
+          "tier": "PRIMARY"
+        }
+      ],
+      "evidence_against": [],
+      "independent_lineages": 2
+    },
+    {
+      "statement": "Substitutes do not erase the value proposition",
+      "status": "RESEARCH_SUPPORTED",
+      "evidence_for": [
+        {
+          "title": "Independent publisher 1 — Measured primary evidence",
+          "summary": "Independent fixture evidence supports the bounded claim.",
+          "publisher": "Independent publisher 1",
+          "tier": "PRIMARY"
+        },
+        {
+          "title": "Independent publisher 2 — Measured primary evidence",
+          "summary": "Independent fixture evidence supports the bounded claim.",
+          "publisher": "Independent publisher 2",
+          "tier": "PRIMARY"
+        }
+      ],
+      "evidence_against": [],
+      "independent_lineages": 2
+    },
+    {
+      "statement": "The product can retain a defensible advantage",
+      "status": "RESEARCH_SUPPORTED",
+      "evidence_for": [
+        {
+          "title": "Independent publisher 1 — Measured primary evidence",
+          "summary": "Independent fixture evidence supports the bounded claim.",
+          "publisher": "Independent publisher 1",
+          "tier": "PRIMARY"
+        },
+        {
+          "title": "Independent publisher 2 — Measured primary evidence",
+          "summary": "Independent fixture evidence supports the bounded claim.",
+          "publisher": "Independent publisher 2",
+          "tier": "PRIMARY"
+        }
+      ],
+      "evidence_against": [],
+      "independent_lineages": 2
+    },
+    {
+      "statement": "The product can operate compliantly",
+      "status": "RESEARCH_SUPPORTED",
+      "evidence_for": [
+        {
+          "title": "Independent publisher 1 — Measured primary evidence",
+          "summary": "Independent fixture evidence supports the bounded claim.",
+          "publisher": "Independent publisher 1",
+          "tier": "PRIMARY"
+        },
+        {
+          "title": "Independent publisher 2 — Measured primary evidence",
+          "summary": "Independent fixture evidence supports the bounded claim.",
+          "publisher": "Independent publisher 2",
+          "tier": "PRIMARY"
+        }
+      ],
+      "evidence_against": [],
+      "independent_lineages": 2
+    },
+    {
+      "statement": "A verifiable why-now catalyst exists",
+      "status": "RESEARCH_SUPPORTED",
+      "evidence_for": [
+        {
+          "title": "Independent publisher 1 — Measured primary evidence",
+          "summary": "Independent fixture evidence supports the bounded claim.",
+          "publisher": "Independent publisher 1",
+          "tier": "PRIMARY"
+        },
+        {
+          "title": "Independent publisher 2 — Measured primary evidence",
+          "summary": "Independent fixture evidence supports the bounded claim.",
+          "publisher": "Independent publisher 2",
+          "tier": "PRIMARY"
+        }
+      ],
+      "evidence_against": [],
+      "independent_lineages": 2
+    }
+  ],
+  "unknowns": [],
+  "competitors": [
+    "Manual workflow",
+    "Horizontal GRC suite"
+  ],
+  "business_model_variants": [
+    "Subscription",
+    "Usage-based API"
+  ],
+  "economics": {
+    "gross_margin_base": 0.8,
+    "source": "fixture"
+  },
+  "automation_ratio": 0.95,
+  "human_minutes_per_customer_at_10x": 1.5,
+  "red_team_findings": [
+    "Resolved market-skeptic challenge"
+  ],
+  "ranking": {
+    "idea_id": "a8d69365-a770-4138-bfae-5759214a43fc",
+    "rating": 1512.0,
+    "rank": 1,
+    "match_count": 1,
+    "stability": 1.0,
+    "portfolio_size": 2
+  },
+  "recommended_experiments": [
+    "Preregistered price-choice test"
+  ],
+  "decision": "BUILD",
+  "reason_codes": [
+    "HARD_GATES_PASSED"
+  ]
+}

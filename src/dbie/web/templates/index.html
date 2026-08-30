@@ -32,6 +32,25 @@
       {% if refresh_seconds %}<span><i class="pulse"></i> Auto-refreshing every {{ refresh_seconds }} seconds</span>{% else %}<span>Auto-refresh disabled</span>{% endif %}
       <code>{{ run_id }}</code>
     </section>
+    <section class="funnel-panel">
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">Discovery progression</p>
+          <h2>Opportunity funnel</h2>
+        </div>
+        <div class="funnel-legend"><span>Target scale</span><span class="actual-key">Current run</span></div>
+      </div>
+      <div class="funnel">
+        {% for stage in funnel %}
+          <div class="funnel-stage" style="width: {{ 100 - loop.index0 * 5 }}%">
+            <span class="funnel-index">{{ "%02d"|format(loop.index) }}</span>
+            <strong>{{ stage.label }}</strong>
+            <span class="funnel-metrics"><small>Target {{ stage.target }}</small><b>{% if stage.actual is not none %}{{ stage.actual }} current{% else %}Not measured{% endif %}</b></span>
+          </div>
+          {% if not loop.last %}<span class="funnel-arrow">↓</span>{% endif %}
+        {% endfor %}
+      </div>
+    </section>
     <div class="columns">
       <section class="panel">
         <div class="panel-heading">
@@ -39,7 +58,6 @@
             <p class="eyebrow">Crew activity</p>
             <h2>Conversations</h2>
           </div>
-          <span class="count">{{ conversations|length }}</span>
         </div>
         {% if conversations %}
           <ol class="file-list">
@@ -47,7 +65,7 @@
               <li>
                 <a href="{{ request.url_for('dashboard_conversation', run_id=run_id, artifact_path=file.relative_path) }}">
                   <span class="file-icon">›_</span>
-                  <span class="file-copy"><strong>{{ file.relative_path }}</strong><small>{{ file.size }} bytes · {{ file.modified_at.strftime('%H:%M:%S UTC') }}</small></span>
+                  <span class="file-copy"><strong>{{ file.display_name }}</strong><small>{{ file.artifact_type }}</small><span class="preview">{{ file.detail }}</span></span>
                   <span class="arrow">→</span>
                 </a>
               </li>
@@ -71,8 +89,8 @@
             {% for file in deliverables %}
               <li>
                 <a href="{{ request.url_for('dashboard_deliverable', run_id=run_id, artifact_path=file.relative_path) }}">
-                  <span class="file-icon document">{{ file.suffix[1:]|upper or 'FILE' }}</span>
-                  <span class="file-copy"><strong>{{ file.relative_path }}</strong><small>{{ file.size }} bytes · {{ file.modified_at.strftime('%H:%M:%S UTC') }}</small></span>
+                  <span class="file-icon document">{{ file.artifact_type[:4]|upper }}</span>
+                  <span class="file-copy"><strong>{{ file.display_name }}</strong><small>{{ file.artifact_type }} · {{ file.detail }}</small></span>
                   <span class="arrow">→</span>
                 </a>
               </li>

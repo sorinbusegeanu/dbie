@@ -2,18 +2,27 @@ from pathlib import Path
 
 from dbie.config import Settings
 from dbie.domain.enums import (
+    ApprovalStatus,
     CandidateState,
     EvidenceDirection,
     EvidenceTier,
     EvidenceType,
     RunStatus,
 )
-from dbie.domain.models import EvidenceItem
+from dbie.domain.models import (
+    EvidenceItem,
+    Experiment,
+    ExperimentOutcome,
+    ExperimentPrediction,
+)
 from dbie.persistence.db import Database
 from dbie.persistence.repositories import (
     CandidateRepository,
     EventRepository,
     EvidenceRepository,
+    ExperimentOutcomeRepository,
+    ExperimentPredictionRepository,
+    ExperimentRepository,
     RunRepository,
 )
 from dbie.services.candidate_service import CandidateService
@@ -24,6 +33,7 @@ from tests.conftest import make_idea
 def settings_for(tmp_path: Path) -> Settings:
     return Settings(
         database_url=f"sqlite:///{tmp_path / 'dbie.sqlite3'}",
+        run_directory=tmp_path / "runs",
         models_config=Path("config/models.yaml"),
         tools_config=Path("config/tools.yaml"),
         policies_config=Path("config/policies.yaml"),
@@ -96,3 +106,46 @@ def test_state_changes_are_reconstructable_from_ordered_events(tmp_path: Path) -
         "IDEA_STATE_CHANGED",
     ]
     assert history[-1]["payload"] == {"state": "ELIGIBLE"}
+
+
+def test_experiment_protocol_prediction_and_outcome_are_separate_records(
+    tmp_path: Path,
+) -> None:
+    database = Database(f"sqlite:///{tmp_path / 'experiments.sqlite3'}")
+    database.initialize()
+    experiment = ExperimentRepository(database).create(
+        Experiment(
+            run_id="run-1",
+            idea_id="idea-1",
+            assumption_id="assumption-1",
+            hypothesis="At least ten percent of qualified visitors request access.",
+            metric="Qualified request rate",
+            threshold=">= 10%",
+            sample_definition="100 unique qualified visitors",
+            stop_condition="Stop after 100 qualified visitors or 30 days",
+        )
+    )
+    prediction = ExperimentPredictionRepository(database).create(
+        ExperimentPrediction(
+            run_id="run-1",
+            experiment_id=experiment.id,
+            predicted_value="12%",
+            rationale="The research evidence supports bounded buyer urgency.",
+        )
+    )
+    outcome = ExperimentOutcomeRepository(database).create(
+        ExperimentOutcome(
+            run_id="run-1",
+            experiment_id=experiment.id,
+            observed_value="8%",
+            sample_size=100,
+            raw_artifact_refs=["artifact://events-1"],
+            interpretation="The preregistered threshold was not met.",
+        )
+    )
+
+    assert experiment.approval_status is ApprovalStatus.REQUIRED
+    assert prediction.locked_at is not None
+    assert ExperimentRepository(database).for_run("run-1") == [experiment]
+    assert ExperimentPredictionRepository(database).for_run("run-1") == [prediction]
+    assert ExperimentOutcomeRepository(database).for_run("run-1") == [outcome]

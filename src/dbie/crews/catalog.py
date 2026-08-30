@@ -9,7 +9,7 @@ from crewai import Agent
 
 from dbie.crews.router_llm import RouterLLM
 from dbie.models.performance import ModelExecutionContext
-from dbie.models.roles import ModelRole
+from dbie.models.roles import ModelRole, ModelSelection
 from dbie.models.task_roles import TaskClass
 from dbie.tools.contracts import ToolName
 from dbie.tools.crewai_tools import CrewAIToolContext, crewai_tools_for
@@ -37,7 +37,7 @@ DISCOVERY_SPECS = (
         "Pain-Point Miner",
         "discovery",
         "Find repeated costly pains",
-        (ToolName.WEB_SEARCH, ToolName.SEARCH_REDDIT),
+        (ToolName.WEB_SEARCH, ToolName.SEARCH_COMMUNITY),
         ModelRole.DOER,
     ),
     ActorSpec(
@@ -75,7 +75,7 @@ IDEATION_SPECS = tuple(
         name,
         "ideation",
         f"Generate ideas through the {name}",
-        (),
+        (ToolName.DATABASE_QUERY, ToolName.SEMANTIC_MEMORY_SEARCH),
         ModelRole.THINKER,
     )
     for name in (
@@ -95,16 +95,69 @@ VALIDATION_SPECS = tuple(
         name,
         "validation",
         f"Independently validate {name}",
-        (ToolName.DATABASE_QUERY, ToolName.WEB_SEARCH, ToolName.FETCH_PAGE),
+        tools,
         ModelRole.DOER,
     )
-    for name in (
-        "Demand Validator",
-        "Economics Analyst",
-        "Distribution Analyst",
-        "Technical Analyst",
-        "Competitive Analyst",
-        "Regulatory Validator",
+    for name, tools in (
+        (
+            "Demand Validator",
+            (
+                ToolName.DATABASE_QUERY,
+                ToolName.WEB_SEARCH,
+                ToolName.FETCH_PAGE,
+                ToolName.SEARCH_COMMUNITY,
+            ),
+        ),
+        (
+            "Economics Analyst",
+            (
+                ToolName.DATABASE_QUERY,
+                ToolName.WEB_SEARCH,
+                ToolName.FETCH_PAGE,
+                ToolName.SEARCH_COMPANIES,
+                ToolName.PYTHON_EXECUTE,
+            ),
+        ),
+        (
+            "Distribution Analyst",
+            (
+                ToolName.DATABASE_QUERY,
+                ToolName.WEB_SEARCH,
+                ToolName.FETCH_PAGE,
+                ToolName.SEARCH_COMMUNITY,
+                ToolName.SEARCH_COMPANIES,
+            ),
+        ),
+        (
+            "Technical Analyst",
+            (
+                ToolName.DATABASE_QUERY,
+                ToolName.WEB_SEARCH,
+                ToolName.FETCH_PAGE,
+                ToolName.SEARCH_GITHUB,
+                ToolName.PYTHON_EXECUTE,
+            ),
+        ),
+        (
+            "Competitive Analyst",
+            (
+                ToolName.DATABASE_QUERY,
+                ToolName.WEB_SEARCH,
+                ToolName.FETCH_PAGE,
+                ToolName.SEARCH_COMPANIES,
+                ToolName.SEARCH_GITHUB,
+            ),
+        ),
+        (
+            "Regulatory Validator",
+            (
+                ToolName.DATABASE_QUERY,
+                ToolName.WEB_SEARCH,
+                ToolName.FETCH_PAGE,
+                ToolName.SEARCH_REGULATIONS,
+                ToolName.READ_DOCUMENT,
+            ),
+        ),
     )
 )
 
@@ -113,7 +166,13 @@ RED_TEAM_SPECS = tuple(
         name,
         "red_team",
         f"Attack the candidate as {name}",
-        (),
+        (
+            ToolName.DATABASE_QUERY,
+            ToolName.WEB_SEARCH,
+            ToolName.FETCH_PAGE,
+            ToolName.SEARCH_COMPANIES,
+            ToolName.SEMANTIC_MEMORY_SEARCH,
+        ),
         ModelRole.JUDGE,
     )
     for name in (
@@ -127,14 +186,49 @@ RED_TEAM_SPECS = tuple(
 )
 
 SYNTHESIS_SPECS = tuple(
-    ActorSpec(name, "synthesis", goal, (), ModelRole.THINKER)
-    for name, goal in (
-        ("Opportunity Synthesizer", "Synthesize qualified opportunities"),
-        ("Assumption Decomposer", "Create falsifiable atomic assumptions"),
-        ("Research Planner", "Plan evidence collection by information gain"),
-        ("Evidence Reconciler", "Reconcile evidence and contradictions"),
-        ("Experiment Designer", "Design the cheapest falsifying experiment"),
-        ("Portfolio Reasoner", "Reason about uncertainty and portfolio value"),
+    ActorSpec(name, "synthesis", goal, tools, ModelRole.THINKER)
+    for name, goal, tools in (
+        (
+            "Opportunity Synthesizer",
+            (
+                "Synthesize qualified opportunities and write a concrete, "
+                "evidence-aware business-opportunity description of at least 100 words"
+            ),
+            (ToolName.DATABASE_QUERY, ToolName.SEMANTIC_MEMORY_SEARCH),
+        ),
+        (
+            "Assumption Decomposer",
+            "Create falsifiable atomic assumptions",
+            (ToolName.DATABASE_QUERY, ToolName.SEMANTIC_MEMORY_SEARCH),
+        ),
+        (
+            "Research Planner",
+            "Plan evidence collection by information gain",
+            (ToolName.DATABASE_QUERY, ToolName.SEMANTIC_MEMORY_SEARCH),
+        ),
+        (
+            "Evidence Reconciler",
+            "Reconcile evidence and contradictions",
+            (ToolName.DATABASE_QUERY, ToolName.SEMANTIC_MEMORY_SEARCH),
+        ),
+        (
+            "Experiment Designer",
+            "Design the cheapest falsifying experiment",
+            (
+                ToolName.DATABASE_QUERY,
+                ToolName.SEMANTIC_MEMORY_SEARCH,
+                ToolName.PYTHON_EXECUTE,
+            ),
+        ),
+        (
+            "Portfolio Reasoner",
+            "Reason about uncertainty and portfolio value",
+            (
+                ToolName.DATABASE_QUERY,
+                ToolName.SEMANTIC_MEMORY_SEARCH,
+                ToolName.PYTHON_EXECUTE,
+            ),
+        ),
     )
 )
 
@@ -164,7 +258,13 @@ class CrewCatalog:
             + RED_TEAM_SPECS
         )
 
-    def build_agent(self, spec: ActorSpec, context: CrewAIToolContext) -> Agent:
+    def build_agent(
+        self,
+        spec: ActorSpec,
+        context: CrewAIToolContext,
+        *,
+        selection: ModelSelection = ModelSelection.PRIMARY,
+    ) -> Agent:
         actor_id = actor_id_for(spec.role)
         actor_context = CrewAIToolContext(
             run_id=context.run_id,
@@ -190,6 +290,7 @@ class CrewCatalog:
                     task_id=context.task_id,
                     task_class=task_class_for_actor(spec),
                 ),
+                selection=selection,
             ),
             tools=crewai_tools_for(self.gateway, actor_context, list(spec.tools)),
             allow_delegation=False,
@@ -223,6 +324,7 @@ def task_class_for_actor(spec: ActorSpec) -> TaskClass:
         "Evidence Reconciler": TaskClass.EVIDENCE_RECONCILIATION,
         "Experiment Designer": TaskClass.EXPERIMENT_DESIGN,
         "Portfolio Reasoner": TaskClass.EVIDENCE_RECONCILIATION,
+        "Portfolio Judge": TaskClass.INDEPENDENT_RED_TEAM,
         "MVP Implementer": TaskClass.MVP_IMPLEMENTATION,
         "Test Repair Agent": TaskClass.TEST_FIX_LOOP,
         "Integration Agent": TaskClass.MVP_IMPLEMENTATION,

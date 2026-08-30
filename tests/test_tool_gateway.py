@@ -123,6 +123,27 @@ def test_adapter_exception_does_not_leak_provider_detail() -> None:
     assert value.audit.records[-1].result.error_category == "ADAPTER_FAILURE"
 
 
+def test_gateway_retries_once_and_records_adapter_metrics() -> None:
+    class FlakyAdapter(FakeAdapter):
+        def execute(self, request: AdapterRequest) -> AdapterResult:
+            if self.calls == 0:
+                self.calls += 1
+                raise RuntimeError("temporary")
+            return super().execute(request)
+
+    adapter = FlakyAdapter()
+    value = gateway(adapter)
+
+    result = value.invoke(envelope())
+
+    assert adapter.calls == 2
+    assert result.adapter_provenance[0].retry_count == 1
+    assert (
+        value.metrics.snapshot().counters["tool_calls{status=success,tool=web_search}"]
+        == 1
+    )
+
+
 def test_registry_rejects_duplicate_names() -> None:
     registry = AdapterRegistry()
     registry.register(FakeAdapter())

@@ -95,3 +95,51 @@ def test_structured_generate_uses_json_schema() -> None:
     answer = provider.structured_generate("gpt-oss:20b-64k", request(), Answer)
 
     assert answer.accepted is True
+
+
+def test_generate_preserves_native_tool_call_history_for_ollama() -> None:
+    seen: dict[str, object] = {}
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        seen.update(json.loads(req.content))
+        return httpx.Response(
+            200,
+            json={"message": {"content": "https://example.test"}, "done": True},
+        )
+
+    client = httpx.Client(
+        transport=httpx.MockTransport(handler), base_url="http://ollama.test"
+    )
+    provider = OllamaProvider(OllamaSettings(), profiles(), client)
+    tool_history = GenerationRequest(
+        messages=[
+            ChatMessage(role="user", content="Search"),
+            ChatMessage(
+                role="assistant",
+                content=None,
+                tool_calls=[
+                    {
+                        "id": "call-1",
+                        "function": {
+                            "name": "web_search",
+                            "arguments": '{"query":"pain"}',
+                        },
+                    }
+                ],
+            ),
+            ChatMessage(
+                role="tool",
+                content='{"sources":["https://example.test"]}',
+                tool_call_id="call-1",
+                name="web_search",
+            ),
+        ]
+    )
+
+    provider.generate("gpt-oss:20b-64k", tool_history)
+
+    messages = seen["messages"]
+    assert messages[1]["tool_calls"][0]["function"]["arguments"] == {
+        "query": "pain"
+    }
+    assert messages[2]["tool_name"] == "web_search"

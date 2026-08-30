@@ -25,6 +25,31 @@ def test_lists_runs_current_and_nested_artifacts(tmp_path: Path) -> None:
     assert [item.relative_path for item in filesystem.list_files("newer", "deliverables")] == [
         "reports/idea.md"
     ]
+    dossier = filesystem.list_files("newer", "deliverables")[0]
+    assert dossier.display_name == "Idea"
+    assert dossier.artifact_type == "Business case"
+    assert filesystem.list_files("newer", "conversations")[0].detail == (
+        "No CrewAI dialogue was executed for this fixture"
+    )
+
+
+def test_reads_transparent_target_and_actual_funnel(tmp_path: Path) -> None:
+    workspace = RunWorkspaceManager(tmp_path).ensure("run")
+    (workspace.deliverables / "run-overview.json").write_text(
+        '{"funnel":{"observed_signals":2,"raw_ideas":50,'
+        '"red_team_survivors":2}}',
+        encoding="utf-8",
+    )
+
+    stages = DashboardFilesystem(tmp_path).read_funnel("run")
+
+    assert [(item.label, item.target) for item in stages[:2]] == [
+        ("Observed problems / signals", "500"),
+        ("Raw business ideas", "250–500"),
+    ]
+    assert stages[0].actual == 2
+    assert stages[4].actual == 2
+    assert stages[6].actual is None
 
 
 def test_newest_run_is_used_when_current_alias_is_missing(tmp_path: Path) -> None:

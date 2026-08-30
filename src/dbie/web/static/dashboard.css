@@ -17,7 +17,7 @@ a { color: inherit; }
 .brand { display: flex; gap: 12px; align-items: center; text-decoration: none; font-weight: 680; letter-spacing: -.02em; }
 .mark { display: grid; place-items: center; width: 34px; height: 34px; border: 1px solid #3c6559; background: #17362f; color: var(--accent); border-radius: 9px; font-size: 12px; letter-spacing: .08em; }
 .read-only { color: var(--muted); font-size: 13px; }
-main { width: min(1180px, calc(100% - 40px)); margin: 0 auto; padding: 58px 0 80px; }
+main { width: min(1240px, calc(100% - 40px)); margin: 0 auto; padding: 58px 0 80px; }
 .hero { display: flex; justify-content: space-between; align-items: end; gap: 32px; margin-bottom: 36px; }
 h1, h2, p { margin-top: 0; }
 h1 { margin-bottom: 12px; font-size: clamp(34px, 5vw, 58px); line-height: 1; letter-spacing: -.055em; }
@@ -31,7 +31,20 @@ select { width: 100%; padding: 12px 38px 12px 14px; border: 1px solid var(--line
 .status-strip code { color: var(--muted); overflow-wrap: anywhere; }
 .pulse { display: inline-block; width: 7px; height: 7px; margin-right: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 4px rgba(88,214,169,.12); }
 .columns { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
-.panel, .reader, .empty-state { border: 1px solid var(--line); border-radius: 13px; background: linear-gradient(145deg, rgba(24,33,44,.94), rgba(15,21,29,.96)); box-shadow: 0 18px 60px rgba(0,0,0,.18); }
+.panel, .reader, .empty-state, .funnel-panel { border: 1px solid var(--line); border-radius: 13px; background: linear-gradient(145deg, rgba(24,33,44,.94), rgba(15,21,29,.96)); box-shadow: 0 18px 60px rgba(0,0,0,.18); }
+.funnel-panel { margin-bottom: 18px; overflow: hidden; }
+.funnel-legend { display: flex; gap: 16px; color: var(--muted); font-size: 11px; }
+.funnel-legend span::before { content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 6px; border-radius: 50%; background: #526274; }
+.funnel-legend .actual-key::before { background: var(--accent); }
+.funnel { display: flex; flex-direction: column; align-items: center; padding: 26px 24px 12px; }
+.funnel-stage { min-height: 54px; display: grid; grid-template-columns: 34px minmax(0,1fr) auto; align-items: center; gap: 12px; padding: 10px 14px; border: 1px solid #2a3b4b; border-radius: 8px; background: linear-gradient(90deg, rgba(102,166,255,.08), rgba(88,214,169,.06)); }
+.funnel-index { color: #60758a; font: 10px ui-monospace, monospace; }
+.funnel-stage strong { font-size: 12px; font-weight: 650; }
+.funnel-metrics { display: flex; align-items: center; gap: 9px; white-space: nowrap; }
+.funnel-metrics small { color: var(--muted); font-size: 10px; }
+.funnel-metrics b { min-width: 70px; padding: 5px 8px; border-radius: 99px; background: #17362f; color: var(--accent); font: 10px ui-monospace, monospace; text-align: center; }
+.funnel-arrow { height: 20px; color: #465d72; font-size: 13px; line-height: 20px; }
+.funnel-note { margin: 0; padding: 0 24px 22px; color: var(--muted); font-size: 11px; line-height: 1.5; text-align: center; }
 .panel { min-height: 310px; overflow: hidden; }
 .panel-heading { display: flex; justify-content: space-between; align-items: center; padding: 23px 24px; border-bottom: 1px solid var(--line); }
 .panel-heading .eyebrow { margin-bottom: 5px; }
@@ -45,6 +58,7 @@ select { width: 100%; padding: 12px 38px 12px 14px; border: 1px solid var(--line
 .file-copy { min-width: 0; display: grid; gap: 4px; }
 .file-copy strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 620; }
 .file-copy small { color: var(--muted); font-size: 10px; }
+.preview { overflow: hidden; color: #a9b7c5; font: 10px/1.4 ui-monospace, monospace; text-overflow: ellipsis; white-space: nowrap; }
 .arrow { color: #526274; }
 .panel-empty { padding: 34px 24px; color: var(--muted); line-height: 1.6; }
 .empty-state { padding: 70px 30px; text-align: center; }
@@ -66,6 +80,38 @@ select { width: 100%; padding: 12px 38px 12px 14px; border: 1px solid var(--line
 .markdown-body pre code { padding: 0; background: none; }
 .markdown-body table { width: 100%; border-collapse: collapse; }
 .markdown-body th, .markdown-body td { padding: 8px 10px; border: 1px solid var(--line); text-align: left; }
+.decision-summary { padding: 32px clamp(24px, 5vw, 58px) 58px; }
+.decision-hero { display: flex; align-items: start; justify-content: space-between; gap: 28px; padding-bottom: 28px; }
+.decision-hero h2 { margin-bottom: 10px; font-size: clamp(28px, 4vw, 42px); }
+.decision-hero p:last-child { max-width: 720px; margin: 0; color: #c0ccd8; line-height: 1.65; }
+.decision-badge { padding: 9px 16px; border: 1px solid #32725f; border-radius: 99px; background: #17362f; color: var(--accent); font: 700 12px ui-monospace, monospace; letter-spacing: .08em; }
+.summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; overflow: hidden; margin-bottom: 32px; border: 1px solid var(--line); border-radius: 10px; background: var(--line); }
+.summary-grid > div { display: grid; gap: 7px; min-height: 90px; padding: 18px; background: #101720; }
+.summary-grid small { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .08em; }
+.summary-grid strong { font-size: 14px; line-height: 1.4; }
+.summary-section { padding: 22px 0; border-top: 1px solid var(--line); }
+.summary-section > p:last-child { margin-bottom: 0; color: #c5d0db; line-height: 1.65; }
+.summary-section ul { margin: 0; padding-left: 18px; color: #c5d0db; line-height: 1.8; }
+.validation-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; padding: 28px 0; border-top: 1px solid var(--line); }
+.validation-summary div { display: grid; gap: 5px; }
+.validation-summary strong { color: var(--accent); font: 24px ui-monospace, monospace; }
+.validation-summary span { color: var(--muted); font-size: 10px; line-height: 1.4; }
+.summary-columns { display: grid; grid-template-columns: 1fr 1fr; column-gap: 34px; }
+.opportunity-description { padding-top: 0; border-top: 0; }
+.opportunity-description > p:last-child { max-width: 920px; font-size: 14px; line-height: 1.8; }
+.assumption-list { display: grid; gap: 8px; }
+.assumption-list article { padding: 15px 17px; border: 1px solid var(--line); border-radius: 8px; background: #0e151d; }
+.assumption-list article > div { display: flex; align-items: start; justify-content: space-between; gap: 18px; }
+.assumption-list article strong { font-size: 12px; line-height: 1.45; }
+.assumption-list article span { flex: 0 0 auto; padding: 4px 7px; border-radius: 99px; background: #17362f; color: var(--accent); font-size: 9px; text-transform: uppercase; letter-spacing: .04em; }
+.assumption-list dl { display: flex; gap: 24px; margin: 12px 0 0; }
+.assumption-list dl div { display: flex; gap: 6px; color: var(--muted); font-size: 10px; }
+.assumption-list dd { margin: 0; color: #d6e0e9; font-family: ui-monospace, monospace; }
+.evidence-names { display: grid; gap: 6px; margin: 13px 0 0; padding: 0; list-style: none; }
+.evidence-names li { display: grid; gap: 2px; padding-left: 12px; border-left: 2px solid #31566a; }
+.evidence-names strong { color: #bcd6e8; font-size: 10px; }
+.evidence-names span { color: var(--muted); font-size: 10px; line-height: 1.45; }
+.contradiction-label { margin: 13px 0 0; color: #d7a78e; font-size: 9px; text-transform: uppercase; letter-spacing: .08em; }
 @media (max-width: 780px) {
   .read-only { display: none; }
   main { width: min(100% - 28px, 1180px); padding-top: 36px; }
@@ -73,4 +119,12 @@ select { width: 100%; padding: 12px 38px 12px 14px; border: 1px solid var(--line
   .run-picker { min-width: 0; }
   .columns { grid-template-columns: 1fr; }
   .status-strip { flex-direction: column; }
+  .funnel-stage { width: 100%; grid-template-columns: 28px minmax(0,1fr); }
+  .funnel-metrics { grid-column: 2; justify-content: space-between; }
+  .funnel-legend { display: none; }
+  .decision-hero { flex-direction: column; }
+  .summary-grid { grid-template-columns: 1fr 1fr; }
+  .validation-summary, .summary-columns { grid-template-columns: 1fr 1fr; }
+  .assumption-list article > div { flex-direction: column; gap: 8px; }
+  .assumption-list dl { flex-direction: column; gap: 6px; }
 }

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from importlib.metadata import PackageNotFoundError, version
+from itertools import islice
 from typing import Any
 
 from dbie.tools.adapters.base import (
@@ -12,6 +13,7 @@ from dbie.tools.adapters.base import (
     ToolAdapter,
 )
 from dbie.tools.normalization.documents import document_hash
+from dbie.tools.normalization.github import repository_record
 
 
 class PyGithubAdapter(ToolAdapter):
@@ -39,38 +41,98 @@ class PyGithubAdapter(ToolAdapter):
         started = datetime.now(UTC)
         arguments = request.arguments
         mode = arguments.get("mode", "REPOSITORIES")
-        if mode != "REPOSITORIES":
-            raise ValueError(f"unsupported PyGithub mode: {mode}")
         query = str(arguments["query"])
         if arguments.get("language"):
             query += f" language:{arguments['language']}"
         repositories: list[dict[str, object]] = []
-        for repository in self.client.search_repositories(query=query)[
-            : int(arguments.get("max_results", 20))
-        ]:
-            license_name = None
-            if getattr(repository, "license", None):
-                license_name = getattr(repository.license, "spdx_id", None)
-            repositories.append(
-                {
-                    "full_name": repository.full_name,
-                    "url": repository.html_url,
-                    "description": repository.description,
-                    "stars": repository.stargazers_count,
-                    "forks": repository.forks_count,
-                    "watchers": repository.watchers_count,
-                    "open_issues": repository.open_issues_count,
-                    "archived": repository.archived,
-                    "license": license_name,
-                    "updated_at": repository.updated_at.isoformat()
-                    if repository.updated_at
-                    else None,
-                }
-            )
+        issues: list[dict[str, object]] = []
+        code_results: list[dict[str, object]] = []
+        limit = int(arguments.get("max_results", 20))
+        if mode in {"REPOSITORIES", "TOPICS"}:
+            if mode == "TOPICS":
+                query = f"topic:{query}"
+            for repository in islice(
+                self.client.search_repositories(query=query), limit
+            ):
+                record = repository_record(repository)
+                releases = []
+                get_releases = getattr(repository, "get_releases", None)
+                if callable(get_releases):
+                    for release in islice(get_releases(), 5):
+                        releases.append(
+                            {
+                                "tag": release.tag_name,
+                                "name": release.title,
+                                "url": release.html_url,
+                                "published_at": release.published_at.isoformat()
+                                if release.published_at
+                                else None,
+                                "draft": release.draft,
+                                "prerelease": release.prerelease,
+                            }
+                        )
+                record["releases"] = releases
+                repositories.append(record)
+        elif mode == "ISSUES":
+            for issue in islice(self.client.search_issues(query=query), limit):
+                replies = []
+                get_comments = getattr(issue, "get_comments", None)
+                if arguments.get("include_comments", True) and callable(get_comments):
+                    for comment in islice(get_comments(), 20):
+                        replies.append(
+                            {
+                                "id": str(comment.id),
+                                "type": "COMMENT",
+                                "body": getattr(comment, "body", "") or "",
+                                "created_at": comment.created_at.isoformat()
+                                if getattr(comment, "created_at", None)
+                                else None,
+                                "url": getattr(comment, "html_url", None),
+                            }
+                        )
+                raw_data = getattr(issue, "raw_data", {}) or {}
+                issues.append(
+                    {
+                        "id": issue.id,
+                        "number": issue.number,
+                        "title": issue.title,
+                        "body": getattr(issue, "body", "") or "",
+                        "url": issue.html_url,
+                        "state": issue.state,
+                        "comments": issue.comments,
+                        "replies": replies,
+                        "reactions": (
+                            raw_data.get("reactions", {}).get("total_count", 0)
+                        ),
+                        "kind": (
+                            "PULL_REQUEST"
+                            if getattr(issue, "pull_request", None)
+                            else "ISSUE"
+                        ),
+                        "created_at": issue.created_at.isoformat(),
+                        "updated_at": issue.updated_at.isoformat(),
+                        "repository_url": getattr(issue, "repository_url", None),
+                    }
+                )
+        elif mode == "CODE":
+            for item in islice(self.client.search_code(query=query), limit):
+                code_results.append(
+                    {
+                        "name": item.name,
+                        "path": item.path,
+                        "url": item.html_url,
+                        "repository": item.repository.full_name,
+                        "sha": item.sha,
+                    }
+                )
+        else:
+            raise ValueError(f"unsupported PyGithub mode: {mode}")
         ended = datetime.now(UTC)
         return AdapterResult(
             payload={
                 "repositories": repositories,
+                "issues": issues,
+                "code_results": code_results,
                 "popularity_is_demand_evidence": False,
             },
             raw_sources=[
@@ -84,6 +146,28 @@ class PyGithubAdapter(ToolAdapter):
                     ),
                 }
                 for item in repositories
+            ]
+            + [
+                {
+                    "source_identifier": str(item["id"]),
+                    "source_url": item["url"],
+                    "source_type": "github_issue",
+                    "content_hash": document_hash(
+                        f"{item['title']}\n{item['updated_at']}".encode()
+                    ),
+                }
+                for item in issues
+            ]
+            + [
+                {
+                    "source_identifier": f"{item['repository']}:{item['path']}",
+                    "source_url": item["url"],
+                    "source_type": "github_code",
+                    "content_hash": document_hash(
+                        f"{item['repository']}\n{item['path']}\n{item['sha']}".encode()
+                    ),
+                }
+                for item in code_results
             ],
             started_at=started,
             ended_at=ended,

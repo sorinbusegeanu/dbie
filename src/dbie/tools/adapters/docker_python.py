@@ -73,6 +73,8 @@ class DockerPythonAdapter(ToolAdapter):
             str(self.cpus),
             "--pids-limit",
             "64",
+            "--ulimit",
+            "nofile=256:256",
             "--tmpfs",
             "/tmp:rw,noexec,nosuid,size=64m",
             self.image,

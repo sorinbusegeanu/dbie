@@ -111,7 +111,7 @@ TEMPLATES = (
 EVIDENCE_ROUTES: dict[AssumptionCategory, tuple[ToolName, ...]] = {
     AssumptionCategory.DEMAND: (
         ToolName.WEB_SEARCH,
-        ToolName.SEARCH_REDDIT,
+        ToolName.SEARCH_COMMUNITY,
         ToolName.FETCH_PAGE,
     ),
     AssumptionCategory.BUYER: (ToolName.SEARCH_COMPANIES, ToolName.WEB_SEARCH),

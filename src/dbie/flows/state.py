@@ -17,8 +17,11 @@ class StageName(StrEnum):
     DECOMPOSE_ASSUMPTIONS = "decompose_assumptions"
     COLLECT_EVIDENCE = "collect_evidence"
     VALIDATE_ASSUMPTIONS = "validate_assumptions"
+    MODEL_BUSINESS = "model_business"
     RED_TEAM = "red_team"
     RANK_PORTFOLIO = "rank_portfolio"
+    DESIGN_EXPERIMENTS = "design_experiments"
+    OBSERVE_AND_DECIDE = "observe_and_decide"
     PRODUCE_DOSSIER = "produce_dossier"
     FINALIZE_RUN = "finalize_run"
 

@@ -1,9 +1,17 @@
 import json
 import subprocess
 
+import pytest
+from pydantic import ValidationError
+
 from dbie.domain.enums import DecisionType
 from dbie.observability.metrics import MetricsCollector, gpu_snapshot
-from dbie.reporting.dossier import AssumptionSummary, Dossier, write_dossier
+from dbie.reporting.dossier import (
+    AssumptionSummary,
+    Dossier,
+    EvidenceReference,
+    write_dossier,
+)
 
 
 def dossier() -> Dossier:
@@ -12,6 +20,17 @@ def dossier() -> Dossier:
         candidate_id="idea",
         title="Compliance automation",
         thesis="Automate a bounded compliance workflow.",
+        description=" ".join(
+            [
+                (
+                    "This detailed opportunity description explains the customer "
+                    "problem, buyer, workflow, product behavior, delivery model, "
+                    "evidence, risks, economics, automation boundaries, validation "
+                    "needs, and next experiment."
+                )
+            ]
+            * 8
+        ),
         why_now="Machine-readable rules",
         customer="Compliance teams",
         buyer="CCO",
@@ -19,7 +38,12 @@ def dossier() -> Dossier:
             AssumptionSummary(
                 statement="Pain exists",
                 status="RESEARCH_SUPPORTED",
-                evidence_for=["source-1"],
+                evidence_for=[
+                    EvidenceReference(
+                        title="Official regulator — Primary evidence",
+                        summary="The measured workflow burden is documented.",
+                    )
+                ],
                 independent_lineages=2,
             )
         ],
@@ -41,6 +65,21 @@ def test_dossier_is_reproducible_markdown_and_machine_state(tmp_path) -> None:
     markdown, state = write_dossier(dossier(), tmp_path)
     assert "## Assumption map and evidence" in markdown.read_text()
     assert json.loads(state.read_text())["decision"] == "BUILD"
+    assert "## Opportunity description" in markdown.read_text()
+    rendered = markdown.read_text()
+    assert "Official regulator — Primary evidence" in rendered
+    assert "## Economics" in rendered
+    assert "Expected base gross margin: **80%**" in rendered
+    assert "## Portfolio position" in rendered
+    assert '"gross_margin_base"' not in rendered
+    assert '"idea_id"' not in rendered
+
+
+def test_dossier_rejects_short_opportunity_description() -> None:
+    payload = dossier().model_dump()
+    payload["description"] = "Too short"
+    with pytest.raises(ValidationError, match="at least 100 words"):
+        Dossier.model_validate(payload)
 
 
 def test_metrics_cover_labels_latency_queue_and_gpu() -> None:

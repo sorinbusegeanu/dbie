@@ -95,7 +95,14 @@ class RouterLLM(BaseLLM):
             else [
                 ChatMessage(
                     role=item.get("role", "user"),
-                    content=str(item.get("content", "")),
+                    content=(
+                        None
+                        if item.get("content") is None
+                        else str(item.get("content", ""))
+                    ),
+                    tool_calls=list(item.get("tool_calls") or []),
+                    tool_call_id=item.get("tool_call_id"),
+                    name=item.get("name"),
                 )
                 for item in messages
                 if item.get("role") in {"system", "user", "assistant", "tool"}
@@ -154,7 +161,12 @@ class RouterLLM(BaseLLM):
                     return self._execute_first_tool(
                         response.tool_calls, available_functions
                     )
-                return json.dumps({"tool_calls": response.tool_calls})
+                # CrewAI's native-tool executor deliberately calls BaseLLM with
+                # ``available_functions=None`` and expects the provider-native
+                # tool-call list back.  Returning JSON text here makes CrewAI
+                # treat the call as a final answer, so the logical DBIE tool is
+                # never executed.
+                return response.tool_calls
             return response.content
         except Exception as exc:
             self._record(

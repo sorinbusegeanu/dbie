@@ -45,6 +45,9 @@ class DocumentRouter(ToolAdapter):
             try:
                 result = adapter.execute(request)
                 result.payload["adapter_attempts"] = [*attempts, f"{adapter.name}:USED"]
+                result.executed_adapter = adapter.name
+                result.fallback_count = len(attempts)
+                result.attempts = [*attempts, f"{adapter.name}:USED"]
                 return result
             except Exception as exc:  # noqa: BLE001 - fallback isolates adapters
                 attempts.append(f"{adapter.name}:ERROR")

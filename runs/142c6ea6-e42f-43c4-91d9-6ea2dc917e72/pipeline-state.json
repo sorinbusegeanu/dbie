@@ -1,0 +1,34 @@
+{
+  "id": "4a12ae90-20e6-4b3a-8591-375994ca75e5",
+  "run_id": "142c6ea6-e42f-43c4-91d9-6ea2dc917e72",
+  "mandate": "Find fully digital, autonomously scalable business opportunities",
+  "current_stage": "discover_signals",
+  "completed_stages": [
+    "initialize_run"
+  ],
+  "signal_ids": [],
+  "candidate_ids": [],
+  "eligible_candidate_ids": [],
+  "finalist_ids": [],
+  "artifacts": {
+    "execution_mode": "live_crewai_ollama",
+    "mvp_version": "v0.6",
+    "configuration_hash": "f5e49d99efb7c693f0c4297d222a83626d9280ae1cb7c60f6b4b8e6ab137c413",
+    "run_plan": {
+      "mandate_interpretation": "The mandate is to identify business opportunities that are entirely digital, capable of scaling without manual intervention, and exclude any that rely on physical assets, linear labor growth, or external consequences.",
+      "research_questions": [
+        "What are the key characteristics of fully digital business models that enable autonomous scaling?",
+        "How can we validate the scalability of a digital business model without relying on physical infrastructure?",
+        "What methods can be used to exclude opportunities that involve labor-linear growth or consequential external actions?"
+      ],
+      "explicit_exclusions": [
+        "Physical infrastructure requirements",
+        "Labor-linear scaling models",
+        "Business opportunities with consequential external actions"
+      ]
+    }
+  },
+  "candidate_failures": [],
+  "run_error": "ValueError: CrewAI task discovery-1-painpointminer did not return DiscoveryBatch after 2 attempts",
+  "checkpoint_version": 1
+}

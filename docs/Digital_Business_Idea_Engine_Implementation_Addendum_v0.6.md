@@ -9,6 +9,12 @@ Companion design: `Digital_Business_Idea_Engine_System_Design_v0.6.md`
 
 This addendum contains **only implementation changes introduced by v0.6**. All v0.5 phases, acceptance gates, domain semantics, CrewAI-only harness decision, model routing, and ten logical tool contracts remain in force unless explicitly amended below.
 
+> **Operational amendment, 30 August 2026:** Section 6 and the T03 adapter are
+> superseded by the credential-free `search_community` implementation described
+> in [Community_Search_Adapter.md](Community_Search_Adapter.md). It uses official
+> Stack Exchange, Hacker News, and GitHub interfaces; SearXNG Reddit results are
+> discovery leads only; PRAW is optional and is not a readiness dependency.
+
 # 1. Architectural Delta
 
 Do **not** add new CrewAI-visible tools. Keep the existing ten logical contracts exactly as the agent-facing surface. Add an internal adapter layer owned by `ToolGateway`.
@@ -158,13 +164,18 @@ Golden fixtures must prove:
 - CrewAI receives the same `fetch_page` result schema in all cases;
 - adapter escalation is recorded in provenance.
 
-# 6. `search_reddit` Delta — PRAW
+# 6. `search_community` Delta — Credential-Free Community Evidence
 
-Implement `PrawRedditAdapter` behind `search_reddit`.
+Implement `CommunitySearchAdapter` behind `search_community`. Aggregate official
+Stack Exchange questions/answers/comments, official Hacker News feeds/comments,
+and GitHub issues/comments. Preserve source IDs, thread/reply relations,
+timestamps, canonical URLs, scores where supplied, and content hashes.
 
-Preserve post/comment IDs, subreddit, author where public and policy-permitted, score, creation time, permalink, parent/thread relation and retrieval timestamp. Normalize deleted/removed content explicitly rather than dropping it silently.
-
-Add caching and conservative rate-limit handling. Reddit anecdotes remain qualitative evidence unless supported by an appropriate sampling methodology.
+Use SearXNG `site:reddit.com` and GitHub Discussion results only as
+`DISCOVERY_LEAD` records. Search snippets are not observed evidence. The adapter
+must not automatically fetch Reddit pages or unofficial JSON endpoints. PRAW is
+an optional future adapter after approved Reddit Data API access and is not a
+health or readiness dependency.
 
 # 7. `search_companies` Delta — Public-Source Composition
 
@@ -338,8 +349,10 @@ web_search:
 fetch_page:
   routing: [trafilatura, crawl4ai, playwright]
 
-reddit:
-  adapter: praw
+community:
+  adapter: community_search
+  evidence_sources: [stackexchange, hackernews, github]
+  discovery_only: [reddit_index, github_discussion_index]
 
 github:
   adapter: pygithub
@@ -394,7 +407,7 @@ Insert the following work into the v0.5 plan after the Tool Gateway contracts ex
 6. Crawl4AI adapter.
 7. Playwright escalation worker.
 8. Docling + PyMuPDF document router.
-9. PRAW adapter.
+9. Credential-free community adapter with explicit lead/evidence separation.
 10. PyGithub adapter.
 11. EUR-Lex adapter, then remaining regulator adapters.
 12. Public company-source composition + entity resolution.

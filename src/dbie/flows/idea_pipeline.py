@@ -116,6 +116,10 @@ class IdeaPipelineFlow(Flow[PipelineState]):
         return self._apply(StageName.VALIDATE_ASSUMPTIONS)
 
     @listen(validate_assumptions)
+    def model_business(self) -> str:
+        return self._apply(StageName.MODEL_BUSINESS)
+
+    @listen(model_business)
     def red_team(self) -> str:
         return self._apply(StageName.RED_TEAM)
 
@@ -124,6 +128,14 @@ class IdeaPipelineFlow(Flow[PipelineState]):
         return self._apply(StageName.RANK_PORTFOLIO)
 
     @listen(rank_portfolio)
+    def design_experiments(self) -> str:
+        return self._apply(StageName.DESIGN_EXPERIMENTS)
+
+    @listen(design_experiments)
+    def observe_and_decide(self) -> str:
+        return self._apply(StageName.OBSERVE_AND_DECIDE)
+
+    @listen(observe_and_decide)
     def produce_dossier(self) -> str:
         return self._apply(StageName.PRODUCE_DOSSIER)
 

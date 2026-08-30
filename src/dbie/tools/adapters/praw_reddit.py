@@ -48,8 +48,46 @@ class PrawRedditAdapter(ToolAdapter):
             sort=str(arguments.get("sort", "relevance")).lower(),
             limit=int(arguments.get("max_threads", 20)),
         ):
+            created_at = datetime.fromtimestamp(submission.created_utc, UTC)
+            date_from = arguments.get("date_from")
+            if date_from and created_at.date() < date_from:
+                continue
             body = getattr(submission, "selftext", None)
             removed = body in {"[deleted]", "[removed]"}
+            comments = []
+            comment_forest = getattr(submission, "comments", None)
+            if arguments.get("include_comments", True) and comment_forest is not None:
+                replace_more = getattr(comment_forest, "replace_more", None)
+                if callable(replace_more):
+                    replace_more(limit=0)
+                list_method = getattr(comment_forest, "list", None)
+                values = (
+                    list_method() if callable(list_method) else list(comment_forest)
+                )
+                for comment in values[:50]:
+                    comment_body = getattr(comment, "body", None)
+                    comment_removed = comment_body in {"[deleted]", "[removed]"}
+                    comments.append(
+                        {
+                            "comment_id": comment.id,
+                            "thread_id": submission.id,
+                            "parent_id": getattr(comment, "parent_id", None),
+                            "body": None if comment_removed else comment_body,
+                            "content_status": (
+                                "REMOVED" if comment_removed else "AVAILABLE"
+                            ),
+                            "author": str(comment.author) if comment.author else None,
+                            "score": getattr(comment, "score", None),
+                            "created_at": datetime.fromtimestamp(
+                                comment.created_utc, UTC
+                            ).isoformat(),
+                            "permalink": (
+                                f"https://reddit.com{comment.permalink}"
+                                if getattr(comment, "permalink", None)
+                                else None
+                            ),
+                        }
+                    )
             posts.append(
                 {
                     "post_id": submission.id,
@@ -59,11 +97,9 @@ class PrawRedditAdapter(ToolAdapter):
                     "content_status": "REMOVED" if removed else "AVAILABLE",
                     "author": str(submission.author) if submission.author else None,
                     "score": submission.score,
-                    "created_at": datetime.fromtimestamp(
-                        submission.created_utc, UTC
-                    ).isoformat(),
+                    "created_at": created_at.isoformat(),
                     "permalink": f"https://reddit.com{submission.permalink}",
-                    "comments": [],
+                    "comments": comments,
                 }
             )
         ended = datetime.now(UTC)

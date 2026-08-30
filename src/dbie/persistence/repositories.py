@@ -13,6 +13,9 @@ from dbie.domain.models import (
     BusinessIdea,
     Evaluation,
     EvidenceItem,
+    Experiment,
+    ExperimentOutcome,
+    ExperimentPrediction,
     PairwiseMatch,
     Run,
 )
@@ -23,6 +26,9 @@ from dbie.persistence.schema import (
     evaluations,
     events,
     evidence,
+    experiment_outcomes,
+    experiment_predictions,
+    experiments,
     ideas,
     pairwise_matches,
     runs,
@@ -179,6 +185,13 @@ class CandidateRepository:
             raise PersistenceError(f"idea not found: {idea_id}")
         return BusinessIdea.model_validate(row)
 
+    def for_run(self, run_id: str) -> list[BusinessIdea]:
+        with self.database.engine.connect() as connection:
+            rows = connection.execute(
+                select(ideas.c.payload).where(ideas.c.run_id == run_id)
+            ).scalars()
+            return [BusinessIdea.model_validate(row) for row in rows]
+
     def set_state(self, idea_id: str, state: CandidateState) -> BusinessIdea:
         idea = self.get(idea_id)
         idea.lifecycle_state = state
@@ -239,6 +252,13 @@ class AssumptionRepository:
             raise PersistenceError(f"assumption not found: {assumption_id}")
         return Assumption.model_validate(row)
 
+    def for_run(self, run_id: str) -> list[Assumption]:
+        with self.database.engine.connect() as connection:
+            rows = connection.execute(
+                select(assumptions.c.payload).where(assumptions.c.run_id == run_id)
+            ).scalars()
+            return [Assumption.model_validate(row) for row in rows]
+
     def save(self, assumption: Assumption) -> Assumption:
         with self.database.engine.begin() as connection:
             result = connection.execute(
@@ -282,6 +302,22 @@ class EvidenceRepository:
                 )
             )
         return item
+
+    def get(self, evidence_id: str) -> EvidenceItem:
+        with self.database.engine.connect() as connection:
+            row = connection.execute(
+                select(evidence.c.payload).where(evidence.c.id == evidence_id)
+            ).scalar_one_or_none()
+        if row is None:
+            raise PersistenceError(f"evidence not found: {evidence_id}")
+        return EvidenceItem.model_validate(row)
+
+    def for_run(self, run_id: str) -> list[EvidenceItem]:
+        with self.database.engine.connect() as connection:
+            rows = connection.execute(
+                select(evidence.c.payload).where(evidence.c.run_id == run_id)
+            ).scalars()
+            return [EvidenceItem.model_validate(row) for row in rows]
 
 
 class EvaluationRepository:
@@ -341,3 +377,90 @@ class PairwiseMatchRepository:
                 )
             ).scalars()
             return [PairwiseMatch.model_validate(row) for row in rows]
+
+
+class ExperimentRepository:
+    def __init__(self, database: Database) -> None:
+        self.database = database
+
+    def create(self, item: Experiment) -> Experiment:
+        with self.database.engine.begin() as connection:
+            connection.execute(
+                insert(experiments).values(
+                    id=item.id,
+                    run_id=item.run_id,
+                    idea_id=item.idea_id,
+                    assumption_id=item.assumption_id,
+                    approval_status=item.approval_status.value,
+                    protocol_version=item.protocol_version,
+                    schema_version=item.schema_version,
+                    created_at=item.created_at,
+                    payload=_payload(item),
+                )
+            )
+        return item
+
+    def for_run(self, run_id: str) -> list[Experiment]:
+        with self.database.engine.connect() as connection:
+            rows = connection.execute(
+                select(experiments.c.payload).where(experiments.c.run_id == run_id)
+            ).scalars()
+            return [Experiment.model_validate(row) for row in rows]
+
+
+class ExperimentPredictionRepository:
+    def __init__(self, database: Database) -> None:
+        self.database = database
+
+    def create(self, item: ExperimentPrediction) -> ExperimentPrediction:
+        if item.locked_at is None:
+            item = item.model_copy(update={"locked_at": _now()})
+        with self.database.engine.begin() as connection:
+            connection.execute(
+                insert(experiment_predictions).values(
+                    id=item.id,
+                    run_id=item.run_id,
+                    experiment_id=item.experiment_id,
+                    schema_version=item.schema_version,
+                    created_at=item.created_at,
+                    payload=_payload(item),
+                )
+            )
+        return item
+
+    def for_run(self, run_id: str) -> list[ExperimentPrediction]:
+        with self.database.engine.connect() as connection:
+            rows = connection.execute(
+                select(experiment_predictions.c.payload).where(
+                    experiment_predictions.c.run_id == run_id
+                )
+            ).scalars()
+            return [ExperimentPrediction.model_validate(row) for row in rows]
+
+
+class ExperimentOutcomeRepository:
+    def __init__(self, database: Database) -> None:
+        self.database = database
+
+    def create(self, item: ExperimentOutcome) -> ExperimentOutcome:
+        with self.database.engine.begin() as connection:
+            connection.execute(
+                insert(experiment_outcomes).values(
+                    id=item.id,
+                    run_id=item.run_id,
+                    experiment_id=item.experiment_id,
+                    schema_version=item.schema_version,
+                    created_at=item.created_at,
+                    payload=_payload(item),
+                )
+            )
+        return item
+
+    def for_run(self, run_id: str) -> list[ExperimentOutcome]:
+        with self.database.engine.connect() as connection:
+            rows = connection.execute(
+                select(experiment_outcomes.c.payload).where(
+                    experiment_outcomes.c.run_id == run_id
+                )
+            ).scalars()
+            return [ExperimentOutcome.model_validate(row) for row in rows]

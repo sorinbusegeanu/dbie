@@ -1,9 +1,68 @@
 {% extends "base.html" %}
-{% block title %}{{ artifact_path }} · DBIE{% endblock %}
+{% block title %}{% if mode == 'dossier' %}{{ content.title }}{% else %}{{ artifact_path }}{% endif %} · DBIE{% endblock %}
 {% block content %}
   <nav class="breadcrumb"><a href="{{ request.url_for('dashboard_run', run_id=run_id) }}">Run {{ run_id }}</a><span>/</span><span>deliverables</span></nav>
   <section class="reader">
-    <div class="reader-heading"><div><p class="eyebrow">Generated deliverable</p><h1>{{ artifact_path }}</h1></div></div>
-    {% if mode == 'markdown' %}<article class="markdown-body">{{ content|safe }}</article>{% else %}<pre class="conversation">{{ content }}</pre>{% endif %}
+    <div class="reader-heading"><div><p class="eyebrow">{% if mode == 'dossier' %}Decision brief{% else %}Generated deliverable{% endif %}</p><h1>{% if mode == 'dossier' %}{{ content.title }}{% else %}{{ artifact_path }}{% endif %}</h1></div></div>
+    {% if mode == 'markdown' %}
+      <article class="markdown-body">{{ content|safe }}</article>
+    {% elif mode == 'dossier' %}
+      <article class="decision-summary">
+        <header class="decision-hero">
+          <div><p class="eyebrow">Business opportunity</p><h2>{{ content.title }}</h2><p>{{ content.thesis }}</p></div>
+          <span class="decision-badge">{{ content.decision }}</span>
+        </header>
+        <section class="summary-section opportunity-description"><p class="eyebrow">Opportunity description</p><p>{{ content.description }}</p></section>
+        <section class="summary-grid">
+          <div><small>Target customer</small><strong>{{ content.customer or 'Unknown' }}</strong></div>
+          <div><small>Buyer</small><strong>{{ content.buyer or 'Unknown' }}</strong></div>
+          <div><small>Automation target</small><strong>{{ content.automation or 'Unknown' }}</strong></div>
+          <div><small>Human effort at 10×</small><strong>{% if content.human_minutes_at_10x is not none %}{{ content.human_minutes_at_10x }} min/customer{% else %}Unknown{% endif %}</strong></div>
+          <div><small>Gross-margin case</small><strong>{{ content.gross_margin or 'Unknown' }}</strong></div>
+          <div><small>Portfolio rank</small><strong>{% if content.rank %}#{{ content.rank }}{% else %}Unranked{% endif %}</strong></div>
+        </section>
+        <section class="summary-section"><p class="eyebrow">Why now</p><p>{{ content.why_now or 'No verified catalyst recorded.' }}</p></section>
+        <section class="validation-summary">
+          <div><strong>{{ content.assumption_supported }}/{{ content.assumption_total }}</strong><span>assumptions supported</span></div>
+          <div><strong>{{ content.minimum_lineages or 0 }}</strong><span>minimum independent lineages</span></div>
+          <div><strong>{{ content.contradictions }}</strong><span>contradicting links</span></div>
+        </section>
+        <section class="summary-section">
+          <p class="eyebrow">Assumption validation</p>
+          <div class="assumption-list">
+            {% for assumption in content.assumptions %}
+              <article>
+                <div><strong>{{ assumption.statement }}</strong><span>{{ assumption.status }}</span></div>
+                <dl>
+                  <div><dt>Supporting evidence</dt><dd>{{ assumption.supporting_evidence }}</dd></div>
+                  <div><dt>Independent lineages</dt><dd>{{ assumption.independent_lineages }}</dd></div>
+                  <div><dt>Contradictions</dt><dd>{{ assumption.contradicting_evidence }}</dd></div>
+                </dl>
+                {% if assumption.supporting_sources %}
+                  <ul class="evidence-names">
+                    {% for evidence in assumption.supporting_sources %}<li>{% if evidence.url %}<a href="{{ evidence.url }}" target="_blank" rel="noreferrer">{{ evidence.title }}</a>{% else %}<strong>{{ evidence.title }}</strong>{% endif %}{% if evidence.summary %}<span>{{ evidence.summary }}</span>{% endif %}</li>{% endfor %}
+                  </ul>
+                {% endif %}
+                {% if assumption.contradicting_sources %}
+                  <p class="contradiction-label">Contradicting evidence</p>
+                  <ul class="evidence-names">
+                    {% for evidence in assumption.contradicting_sources %}<li>{% if evidence.url %}<a href="{{ evidence.url }}" target="_blank" rel="noreferrer">{{ evidence.title }}</a>{% else %}<strong>{{ evidence.title }}</strong>{% endif %}{% if evidence.summary %}<span>{{ evidence.summary }}</span>{% endif %}</li>{% endfor %}
+                  </ul>
+                {% endif %}
+              </article>
+            {% endfor %}
+          </div>
+        </section>
+        <div class="summary-columns">
+          <section class="summary-section"><p class="eyebrow">Competition</p><ul>{% for item in content.competitors %}<li>{{ item }}</li>{% else %}<li>None recorded</li>{% endfor %}</ul></section>
+          <section class="summary-section"><p class="eyebrow">Business models</p><ul>{% for item in content.business_models %}<li>{{ item }}</li>{% else %}<li>None recorded</li>{% endfor %}</ul></section>
+          <section class="summary-section"><p class="eyebrow">Red-team result</p><ul>{% for item in content.red_team_findings %}<li>{{ item }}</li>{% else %}<li>No findings recorded</li>{% endfor %}</ul></section>
+          <section class="summary-section"><p class="eyebrow">Recommended experiment</p><ul>{% for item in content.recommended_experiments %}<li>{{ item }}</li>{% else %}<li>No experiment recorded</li>{% endfor %}</ul></section>
+        </div>
+        {% if content.unknowns %}<section class="summary-section"><p class="eyebrow">Open unknowns</p><ul>{% for item in content.unknowns %}<li>{{ item }}</li>{% endfor %}</ul></section>{% endif %}
+      </article>
+    {% else %}
+      <pre class="conversation">{{ content }}</pre>
+    {% endif %}
   </section>
 {% endblock %}

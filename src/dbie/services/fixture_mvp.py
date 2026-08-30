@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+import os
 from hashlib import sha256
 from pathlib import Path
 from typing import Any
@@ -31,7 +33,12 @@ from dbie.persistence.repositories import (
     PairwiseMatchRepository,
     RunRepository,
 )
-from dbie.reporting.dossier import AssumptionSummary, Dossier, write_dossier
+from dbie.reporting.dossier import (
+    AssumptionSummary,
+    Dossier,
+    EvidenceReference,
+    write_dossier,
+)
 from dbie.services.assumption_pipeline import decompose_idea, validate_assumption
 from dbie.services.candidate_service import CandidateService
 from dbie.services.run_workspace import RunWorkspaceManager
@@ -56,6 +63,7 @@ class FixtureMVPExecutor:
         self.workspaces.append_activity(state.run_id, f"stage {stage.value}: started")
         handler = getattr(self, f"_{stage.value}")
         result = handler(state)
+        self._record_visible_stage_output(stage, state, result)
         self.workspaces.append_activity(state.run_id, f"stage {stage.value}: completed")
         return result
 
@@ -142,6 +150,25 @@ class FixtureMVPExecutor:
                 validated.append(result.model_dump(mode="json"))
         return {"artifacts": {"validated_assumptions": validated}}
 
+    def _model_business(self, state: PipelineState) -> dict[str, Any]:
+        return {
+            "artifacts": {
+                "business_models": [
+                    {
+                        "candidate_id": identifier,
+                        "name": "Self-service subscription",
+                        "buyer": self.candidates.get(identifier).buyer,
+                        "pricing_model": "Monthly subscription",
+                        "acquisition_channel": "Digital content and partnerships",
+                        "delivery_mechanism": "Multi-tenant SaaS and API",
+                        "key_cost_drivers": ["Document processing"],
+                        "distinct_assumptions": ["Remote buyer approval"],
+                    }
+                    for identifier in state.eligible_candidate_ids
+                ]
+            }
+        }
+
     def _red_team(self, state: PipelineState) -> dict[str, Any]:
         findings = [
             RedTeamFinding(
@@ -199,11 +226,43 @@ class FixtureMVPExecutor:
             }
         }
 
+    def _design_experiments(self, state: PipelineState) -> dict[str, Any]:
+        return {
+            "artifacts": {
+                "experiment_candidate_ids": [],
+                "experiments": [],
+                "experiment_predictions": [],
+            }
+        }
+
+    def _observe_and_decide(self, state: PipelineState) -> dict[str, Any]:
+        return {
+            "artifacts": {
+                "observed_decisions": {
+                    identifier: {
+                        "recommendation": DecisionType.BUILD.value,
+                        "reason_codes": ["HARD_GATES_PASSED", "NO_OBSERVED_OUTCOME"],
+                        "rationale": "Research gates passed; no market outcome was claimed.",
+                        "observed_outcome_ids": [],
+                        "observed_market_evidence": False,
+                    }
+                    for identifier in state.finalist_ids
+                },
+                "observed_outcome_count": 0,
+                "unexecuted_experiment_ids": [],
+            }
+        }
+
     def _produce_dossier(self, state: PipelineState) -> dict[str, Any]:
         ranking_by_id = {
             item["idea_id"]: item for item in state.artifacts.get("rankings", [])
         }
         paths = []
+        evidence_by_id = {
+            item["id"]: EvidenceItem.model_validate(item)
+            for items in state.artifacts.get("evidence_by_assumption", {}).values()
+            for item in items
+        }
         for identifier in state.finalist_ids:
             idea = self.candidates.get(identifier)
             assumptions = self.assumptions.for_idea(identifier)
@@ -212,6 +271,7 @@ class FixtureMVPExecutor:
                 candidate_id=identifier,
                 title=idea.title,
                 thesis=idea.one_sentence_thesis,
+                description=self._opportunity_description(idea),
                 why_now=idea.why_now,
                 customer=idea.target_customer,
                 buyer=idea.buyer,
@@ -219,8 +279,12 @@ class FixtureMVPExecutor:
                     AssumptionSummary(
                         statement=item.statement,
                         status=item.status.value,
-                        evidence_for=item.evidence_for_ids,
-                        evidence_against=item.evidence_against_ids,
+                        evidence_for=self._named_evidence(
+                            item.evidence_for_ids, evidence_by_id
+                        ),
+                        evidence_against=self._named_evidence(
+                            item.evidence_against_ids, evidence_by_id
+                        ),
                         independent_lineages=2,
                     )
                     for item in assumptions
@@ -228,11 +292,14 @@ class FixtureMVPExecutor:
                 unknowns=[],
                 competitors=["Manual workflow", "Horizontal GRC suite"],
                 business_model_variants=["Subscription", "Usage-based API"],
-                economics={"gross_margin_base": 0.8, "source": "fixture"},
+                economics={"gross_margin_base": 0.8},
                 automation_ratio=idea.autonomous_scalability.target_automation_ratio,
                 human_minutes_per_customer_at_10x=idea.autonomous_scalability.human_minutes_per_customer_at_10x,
                 red_team_findings=["Resolved market-skeptic challenge"],
-                ranking=ranking_by_id.get(identifier, {"rank": 1, "stability": 1}),
+                ranking=(
+                    ranking_by_id.get(identifier, {"rank": 1, "stability": 1})
+                    | {"portfolio_size": len(state.finalist_ids)}
+                ),
                 recommended_experiments=["Preregistered price-choice test"],
                 decision=DecisionType.BUILD,
                 reason_codes=["HARD_GATES_PASSED"],
@@ -243,9 +310,173 @@ class FixtureMVPExecutor:
             paths.extend((str(markdown), str(structured)))
         return {"artifacts": {"dossier_paths": paths}}
 
+    @staticmethod
+    def _named_evidence(
+        identifiers: list[str], evidence_by_id: dict[str, EvidenceItem]
+    ) -> list[EvidenceReference]:
+        references: list[EvidenceReference] = []
+        for position, identifier in enumerate(identifiers, start=1):
+            item = evidence_by_id.get(identifier)
+            if item is None:
+                references.append(
+                    EvidenceReference(
+                        title=f"Evidence source {position}",
+                        summary="The source record is retained in canonical storage.",
+                    )
+                )
+                continue
+            publisher = item.publisher or item.source_type.replace("_", " ").title()
+            references.append(
+                EvidenceReference(
+                    title=(
+                        f"{publisher} — {item.evidence_type.value.title()} "
+                        f"{item.tier.value.lower()} evidence"
+                    ),
+                    summary=item.extracted_fact,
+                    url=str(item.source_url) if item.source_url else None,
+                    publisher=item.publisher,
+                    tier=item.tier.value,
+                )
+            )
+        return references
+
     def _finalize_run(self, state: PipelineState) -> dict[str, Any]:
+        self._write_run_overview(state)
         self.runs.set_status(state.run_id, RunStatus.COMPLETED)
         return {}
+
+    def _record_visible_stage_output(
+        self, stage: StageName, state: PipelineState, result: dict[str, Any]
+    ) -> None:
+        artifacts = result.get("artifacts", {})
+        conversation, message = {
+            StageName.INITIALIZE_RUN: (
+                "market_research_summary.log",
+                f"Run initialized for mandate: {state.mandate}",
+            ),
+            StageName.DISCOVER_SIGNALS: (
+                "market_research_summary.log",
+                "Observed signals: "
+                + ", ".join(artifacts.get("signals", [])),
+            ),
+            StageName.GENERATE_IDEAS: (
+                "ideation_summary.log",
+                (
+                    f"Generated {artifacts.get('raw_idea_count', 0)} raw ideas; "
+                    f"deduplicated fixture retained {len(result.get('candidate_ids', []))}.\n"
+                    "Retained ideas: "
+                    + ", ".join(
+                        item.get("title", "Untitled")
+                        for item in artifacts.get("idea_records", [])
+                    )
+                ),
+            ),
+            StageName.ELIGIBILITY_GATE: (
+                "ideation_summary.log",
+                (
+                    f"Digital/autonomous gate retained "
+                    f"{len(result.get('eligible_candidate_ids', []))} candidates."
+                ),
+            ),
+            StageName.DECOMPOSE_ASSUMPTIONS: (
+                "ideation_summary.log",
+                f"Decomposed {len(artifacts.get('assumptions', []))} atomic assumptions.",
+            ),
+            StageName.COLLECT_EVIDENCE: (
+                "market_research_summary.log",
+                (
+                    "Collected "
+                    f"{sum(len(items) for items in artifacts.get('evidence_by_assumption', {}).values())} "
+                    "traceable evidence items."
+                ),
+            ),
+            StageName.VALIDATE_ASSUMPTIONS: (
+                "evidence_validation_summary.log",
+                (
+                    f"Validated {len(artifacts.get('validated_assumptions', []))} "
+                    "assumptions against independent evidence lineages."
+                ),
+            ),
+            StageName.MODEL_BUSINESS: (
+                "portfolio_summary.log",
+                f"Compared {len(artifacts.get('business_models', []))} digital business models.",
+            ),
+            StageName.RED_TEAM: (
+                "red_team_summary.log",
+                (
+                    f"Completed {len(artifacts.get('red_team_findings', []))} "
+                    f"adversarial reviews; {len(result.get('finalist_ids', []))} survived."
+                ),
+            ),
+            StageName.RANK_PORTFOLIO: (
+                "portfolio_summary.log",
+                (
+                    f"Ranked {len(artifacts.get('rankings', []))} finalists from "
+                    f"{len(artifacts.get('matches', []))} stored pairwise matches."
+                ),
+            ),
+            StageName.DESIGN_EXPERIMENTS: (
+                "portfolio_summary.log",
+                f"Preregistered {len(artifacts.get('experiments', []))} experiments.",
+            ),
+            StageName.OBSERVE_AND_DECIDE: (
+                "portfolio_summary.log",
+                "Checked immutable outcomes; no unobserved result was promoted to evidence.",
+            ),
+            StageName.PRODUCE_DOSSIER: (
+                "portfolio_summary.log",
+                f"Produced {len(artifacts.get('dossier_paths', []))} dossier artifacts.",
+            ),
+            StageName.FINALIZE_RUN: (
+                "portfolio_summary.log",
+                "Run completed with ranked BUILD / KILL / ITERATE recommendations.",
+            ),
+        }[stage]
+        self.workspaces.append_visible_output(state.run_id, conversation, message)
+
+    def _write_run_overview(self, state: PipelineState) -> Path:
+        workspace = self.workspaces.ensure(state.run_id)
+        overview = {
+            "artifact_type": "run_overview",
+            "run_id": state.run_id,
+            "funnel": {
+                "observed_signals": len(state.signal_ids),
+                "raw_ideas": int(state.artifacts.get("raw_idea_count", 0)),
+                "evidence_qualified": len(state.eligible_candidate_ids),
+                "assumption_validated": len(state.eligible_candidate_ids),
+                "red_team_survivors": len(state.finalist_ids),
+                "experiment_candidates": len(state.finalist_ids),
+                "observed_market_evidence": 0,
+                "ranked_recommendations": len(state.finalist_ids),
+            },
+        }
+        path = workspace.deliverables / "run-overview.json"
+        temporary = path.with_suffix(".json.tmp")
+        temporary.write_text(json.dumps(overview, indent=2), encoding="utf-8")
+        os.replace(temporary, path)
+        return path
+
+    @staticmethod
+    def _opportunity_description(idea: BusinessIdea) -> str:
+        return (
+            f"{idea.title} is a software opportunity for {idea.target_customer} "
+            "that need to translate changing rules and policies into reliable "
+            "operational work. The product would ingest official, machine-readable "
+            "material, identify relevant obligations, map them to a customer's "
+            "workflow, and produce traceable recommendations for expert review. "
+            f"Its primary buyer is the {idea.buyer}, while {idea.user} teams use "
+            "the service through a self-service application and API. The value "
+            "comes from reducing repetitive evidence review, shortening response "
+            "cycles, and preserving an auditable source trail. Subscription and "
+            "usage-based pricing could support the delivery model. The system "
+            "targets high automation and low marginal human effort, with people "
+            "involved mainly for consequential exceptions. Initial validation "
+            "should test buyer urgency, output accuracy, integration effort, "
+            "repeat usage, and willingness to pay before committing resources to "
+            "a production build. The proposed service remains fully digital in "
+            "acquisition, delivery, support, payment, operation, and geographic "
+            "scaling."
+        )
 
     @staticmethod
     def _idea(state: PipelineState, title: str, workflow: str) -> BusinessIdea:

@@ -12,7 +12,7 @@ from pydantic import BaseModel, ConfigDict, Field
 class ToolName(StrEnum):
     WEB_SEARCH = "web_search"
     FETCH_PAGE = "fetch_page"
-    SEARCH_REDDIT = "search_reddit"
+    SEARCH_COMMUNITY = "search_community"
     SEARCH_COMPANIES = "search_companies"
     SEARCH_GITHUB = "search_github"
     SEARCH_REGULATIONS = "search_regulations"
@@ -34,6 +34,7 @@ class ToolBudget(BaseModel):
     max_cost: float = Field(default=0, ge=0)
     timeout_seconds: float = Field(default=30, gt=0)
     max_calls: int = Field(default=20, ge=1)
+    max_retries: int = Field(default=1, ge=0, le=3)
 
 
 class ToolCallEnvelope(BaseModel):

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import platform
+from hashlib import sha256
 from pathlib import Path
 from typing import Annotated, Any
 from uuid import uuid4
@@ -13,7 +14,10 @@ from pydantic import BaseModel
 from sqlalchemy.exc import SQLAlchemyError
 
 from dbie.bootstrap import build_runtime
-from dbie.config import load_settings
+from dbie.config import load_settings, load_tools_config
+from dbie.crews.catalog import CrewCatalog
+from dbie.crews.stage_runner import CrewAIStageRunner
+from dbie.domain.enums import RunStatus
 from dbie.domain.models import (
     AutonomousScalability,
     BusinessIdea,
@@ -32,7 +36,11 @@ from dbie.observability.logging import configure_logging
 from dbie.persistence.repositories import CandidateRepository, RunRepository
 from dbie.services.candidate_service import CandidateService
 from dbie.services.fixture_mvp import FixtureMVPExecutor
+from dbie.services.live_mvp import LiveMVPConfig, LiveMVPExecutor
 from dbie.services.run_service import RunService
+from dbie.tools.adapters.embeddings import FastEmbedBGEEmbeddingService
+from dbie.tools.audit import CompositeAuditSink, JsonlToolAuditSink
+from dbie.tools.oss_local import OSSLocalStack, build_oss_stack
 from dbie.web import create_dashboard_app
 
 app = typer.Typer(no_args_is_help=True, help="Digital Business Idea Engine")
@@ -57,10 +65,13 @@ def initialize(
 def doctor(
     config: Annotated[Path, typer.Option(exists=True)] = Path("config/default.yaml"),
     strict: Annotated[
-        bool, typer.Option(help="Exit non-zero when a configured model is absent.")
+        bool,
+        typer.Option(
+            help="Exit non-zero unless models, ten tools, and local embeddings are ready."
+        ),
     ] = True,
 ) -> None:
-    """Check Python, database, Ollama, and exact configured model readiness."""
+    """Check Python, database, Ollama, models, ten tools, and embeddings."""
     runtime = build_runtime(str(config))
     configure_logging(runtime.settings.log_level, runtime.settings.json_logs)
     checks: dict[str, Any] = {
@@ -89,11 +100,24 @@ def doctor(
     }
     checks["ollama"] = health.model_dump()
     checks["models"] = model_checks
+    live_ready = False
+    try:
+        stack, _, _ = _live_stack(runtime)
+        live_checks = _live_preflight(runtime, stack)
+        checks["tools"] = live_checks["tools"]
+        checks["internal_adapters"] = live_checks["internal_adapters"]
+        checks["embedding"] = live_checks["embedding"]
+        live_ready = live_checks["ready"]
+    except Exception as exc:  # noqa: BLE001 - doctor reports setup gaps
+        checks["tools"] = {"ok": False, "error": str(exc)}
+        checks["internal_adapters"] = {"ok": False, "error": str(exc)}
+        checks["embedding"] = {"available": False, "error": str(exc)}
     fatal = (
         not checks["python"]["ok"]
         or not checks["database"]["ok"]
         or not health.reachable
         or (strict and not all(item["ok"] for item in model_checks.values()))
+        or (strict and not live_ready)
     )
     checks["ready"] = not fatal
     _emit(checks)
@@ -184,6 +208,203 @@ def acceptance_run(
             "finalist_ids": flow.state.finalist_ids,
             "dossiers": flow.state.artifacts["dossier_paths"],
             "checkpoint": str(checkpoint_store.path_for(run_id)),
+        }
+    )
+
+
+def _live_stack(runtime: Any) -> tuple[OSSLocalStack, CrewAIStageRunner, LiveMVPConfig]:
+    tools_config = load_tools_config(runtime.settings)
+    embedding_config = tools_config.get("embedding_profile", {})
+    embeddings = FastEmbedBGEEmbeddingService(
+        model_id=embedding_config.get("model", "BAAI/bge-small-en-v1.5"),
+        cache_dir=(
+            Path(embedding_config["cache_dir"])
+            if embedding_config.get("cache_dir")
+            else None
+        ),
+        # A live run must never silently download a model.  Install/cache the
+        # configured BGE/E5 model explicitly, then rerun doctor/live-run.
+        local_files_only=True,
+    )
+    audit = CompositeAuditSink(
+        [JsonlToolAuditSink(runtime.settings.run_directory)]
+    )
+    stack = build_oss_stack(
+        database=runtime.database,
+        embeddings=embeddings,
+        tools_config=tools_config,
+        audit=audit,
+    )
+    catalog = CrewCatalog(stack.gateway, runtime.crew_llm)
+    runner = CrewAIStageRunner(
+        catalog,
+        runtime.settings.run_directory,
+        performance_sink=runtime.model_performance,
+    )
+    mvp_config = LiveMVPConfig.model_validate(tools_config.get("mvp", {}))
+    return stack, runner, mvp_config
+
+
+def _live_preflight(runtime: Any, stack: OSSLocalStack) -> dict[str, Any]:
+    health = runtime.ollama.health()
+    configured = {
+        profile.model for profile in runtime.models_config.profiles.values()
+    }
+    installed = set(health.installed_models)
+    model_state = {
+        model: model in installed for model in sorted(configured)
+    }
+    adapters = {}
+    for tool, adapter_name in stack.gateway.routes.items():
+        adapter = stack.gateway.registry.get(adapter_name)
+        status = adapter.health()
+        adapters[tool.value] = status.model_dump(mode="json")
+    internal_adapters = {
+        status.name: status.model_dump(mode="json")
+        for status in stack.gateway.registry.health()
+    }
+    embedding_error = None
+    try:
+        stack.embeddings.embed(["DBIE local embedding health check"])
+        embedding_available = True
+    except Exception as exc:  # noqa: BLE001 - preflight reports a normalized gap
+        embedding_available = False
+        embedding_error = str(exc)
+    ready = (
+        health.reachable
+        and all(model_state.values())
+        and all(item["available"] for item in adapters.values())
+        and all(item["available"] for item in internal_adapters.values())
+        and embedding_available
+    )
+    return {
+        "ready": ready,
+        "ollama": health.model_dump(mode="json"),
+        "models": model_state,
+        "tools": adapters,
+        "internal_adapters": internal_adapters,
+        "embedding": {
+            "available": embedding_available,
+            "model": stack.embeddings.model_id,
+            "error": embedding_error,
+        },
+    }
+
+
+def _live_executor(
+    runtime: Any,
+    stack: OSSLocalStack,
+    runner: CrewAIStageRunner,
+    mvp_config: LiveMVPConfig,
+) -> LiveMVPExecutor:
+    fingerprint = sha256(
+        (
+            runtime.models_config.model_dump_json()
+            + json.dumps(load_tools_config(runtime.settings), sort_keys=True)
+        ).encode()
+    ).hexdigest()
+    return LiveMVPExecutor(
+        runtime.database,
+        runtime.settings.run_directory,
+        stack.gateway,
+        runner,
+        stack.memory,
+        config=mvp_config,
+        configuration_hash=fingerprint,
+    )
+
+
+@app.command("live-run")
+def live_run(
+    mandate: Annotated[str, typer.Option(help="Business discovery mandate")] = (
+        "Find fully digital, autonomously scalable compliance products"
+    ),
+    signals: Annotated[int | None, typer.Option(min=1, max=500)] = None,
+    ideas: Annotated[int | None, typer.Option(min=1, max=500)] = None,
+    candidates: Annotated[int | None, typer.Option(min=1, max=25)] = None,
+    strict_targets: Annotated[bool, typer.Option()] = True,
+    preflight: Annotated[bool, typer.Option()] = True,
+    config: Annotated[Path, typer.Option(exists=True)] = Path("config/default.yaml"),
+) -> None:
+    """Run every v0.6 MVP stage through real CrewAI/Ollama agents and OSS tools."""
+    runtime = build_runtime(str(config))
+    runtime.database.initialize()
+    stack, runner, configured = _live_stack(runtime)
+    if preflight:
+        checks = _live_preflight(runtime, stack)
+        if not checks["ready"]:
+            _emit({"status": "PREFLIGHT_FAILED", "checks": checks})
+            raise typer.Exit(code=1)
+    selected = configured.model_copy(
+        update={
+            "target_signals": signals or configured.target_signals,
+            "target_raw_ideas": ideas or configured.target_raw_ideas,
+            "max_validation_candidates": (
+                candidates or configured.max_validation_candidates
+            ),
+            "strict_generation_targets": strict_targets,
+        }
+    )
+    run_id = str(uuid4())
+    checkpoints = JsonCheckpointStore(runtime.settings.run_directory)
+    executor = _live_executor(runtime, stack, runner, selected)
+    flow = IdeaPipelineFlow(
+        state=PipelineState(run_id=run_id, mandate=mandate),
+        executor=executor,
+        checkpoint_store=checkpoints,
+    )
+    try:
+        flow.kickoff()
+    except Exception:
+        try:
+            RunRepository(runtime.database).set_status(run_id, RunStatus.FAILED)
+        except Exception as status_error:  # noqa: BLE001
+            typer.echo(
+                f"warning: could not persist failed run status: {status_error}",
+                err=True,
+            )
+        raise
+    _emit(
+        {
+            "run_id": run_id,
+            "status": "COMPLETED",
+            "execution_mode": "live_crewai_ollama",
+            "finalist_ids": flow.state.finalist_ids,
+            "dossiers": flow.state.artifacts.get("dossier_paths", []),
+            "checkpoint": str(checkpoints.path_for(run_id)),
+        }
+    )
+
+
+@app.command("resume-run")
+def resume_live_run(
+    run_id: Annotated[str, typer.Argument(help="Persisted run UUID")],
+    preflight: Annotated[bool, typer.Option()] = True,
+    config: Annotated[Path, typer.Option(exists=True)] = Path("config/default.yaml"),
+) -> None:
+    """Resume a live run from its last completed stage checkpoint."""
+    runtime = build_runtime(str(config))
+    runtime.database.initialize()
+    stack, runner, configured = _live_stack(runtime)
+    if preflight:
+        checks = _live_preflight(runtime, stack)
+        if not checks["ready"]:
+            _emit({"status": "PREFLIGHT_FAILED", "checks": checks})
+            raise typer.Exit(code=1)
+    checkpoints = JsonCheckpointStore(runtime.settings.run_directory)
+    flow = IdeaPipelineFlow.resume(
+        run_id,
+        checkpoint_store=checkpoints,
+        executor=_live_executor(runtime, stack, runner, configured),
+    )
+    RunRepository(runtime.database).set_status(run_id, RunStatus.RUNNING)
+    flow.kickoff()
+    _emit(
+        {
+            "run_id": run_id,
+            "status": "COMPLETED",
+            "execution_mode": "live_crewai_ollama",
+            "finalist_ids": flow.state.finalist_ids,
         }
     )
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from time import monotonic
 from typing import Any
 
@@ -117,7 +118,7 @@ class OllamaProvider(LLMProvider):
 
         body: dict[str, Any] = {
             "model": model,
-            "messages": [message.model_dump() for message in request.messages],
+            "messages": [_ollama_message(message) for message in request.messages],
             "stream": False,
             "keep_alive": self.settings.keep_alive,
             "options": {"num_ctx": context_tokens},
@@ -166,3 +167,28 @@ class OllamaProvider(LLMProvider):
             structured_output_valid=output_schema is not None,
             raw=data,
         )
+
+
+def _ollama_message(message: Any) -> dict[str, Any]:
+    """Preserve CrewAI's native tool-call history in Ollama's chat schema."""
+    value: dict[str, Any] = {
+        "role": message.role,
+        "content": message.content or "",
+    }
+    if message.tool_calls:
+        calls = []
+        for call in message.tool_calls:
+            copied = dict(call)
+            function = dict(copied.get("function") or {})
+            arguments = function.get("arguments")
+            if isinstance(arguments, str):
+                try:
+                    function["arguments"] = json.loads(arguments)
+                except json.JSONDecodeError:
+                    function["arguments"] = {}
+            copied["function"] = function
+            calls.append(copied)
+        value["tool_calls"] = calls
+    if message.role == "tool" and message.name:
+        value["tool_name"] = message.name
+    return value

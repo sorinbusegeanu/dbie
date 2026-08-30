@@ -10,6 +10,7 @@ def test_smoke_command_round_trips_without_llm(monkeypatch, tmp_path: Path) -> N
     monkeypatch.setenv(
         "DBIE_DATABASE_URL", f"sqlite:///{tmp_path / 'cli-smoke.sqlite3'}"
     )
+    monkeypatch.setenv("DBIE_RUN_DIRECTORY", str(tmp_path / "runs"))
 
     result = CliRunner().invoke(app, ["smoke"])
 

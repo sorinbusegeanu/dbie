@@ -1,0 +1,163 @@
+{
+  "run_id": "ab563425-ad2b-49e7-bdb6-179ac03e2e72",
+  "candidate_id": "a1de362c-11a0-4d6f-b29f-95574f3c4ba6",
+  "title": "Regulatory Evidence Copilot",
+  "thesis": "Automate costly evidence review for regulated teams.",
+  "why_now": "Official rules are increasingly machine-readable.",
+  "customer": "Regulated mid-market companies",
+  "buyer": "Chief compliance officer",
+  "assumptions": [
+    {
+      "statement": "The target problem exists and is severe",
+      "status": "RESEARCH_SUPPORTED",
+      "evidence_for": [
+        "83b4ee0e-2c41-47d3-b0bf-7c24f0f12d92",
+        "a820eccb-d1f7-4f0b-81e2-8292b39e952b"
+      ],
+      "evidence_against": [],
+      "independent_lineages": 2
+    },
+    {
+      "statement": "An identifiable buyer owns the problem",
+      "status": "RESEARCH_SUPPORTED",
+      "evidence_for": [
+        "8ba175c5-e9ce-4119-8e64-a7b60f17a996",
+        "a833bd35-49be-4e9e-b306-7e3150f99697"
+      ],
+      "evidence_against": [],
+      "independent_lineages": 2
+    },
+    {
+      "statement": "The buyer is willing to pay",
+      "status": "RESEARCH_SUPPORTED",
+      "evidence_for": [
+        "19568549-2c1d-4510-be6c-da788e370ae1",
+        "8248275e-d836-4c3d-8616-43fbdfdd5f37"
+      ],
+      "evidence_against": [],
+      "independent_lineages": 2
+    },
+    {
+      "statement": "The buyer is reachable through a repeatable digital channel",
+      "status": "RESEARCH_SUPPORTED",
+      "evidence_for": [
+        "fc122f02-d800-4e8a-9eeb-a0af9c3f5456",
+        "0da2064e-b59d-4376-9e71-6b258de8a0e2"
+      ],
+      "evidence_against": [],
+      "independent_lineages": 2
+    },
+    {
+      "statement": "The product is technically feasible",
+      "status": "RESEARCH_SUPPORTED",
+      "evidence_for": [
+        "6546cf76-4307-46ff-8fe4-a7f3875c34fe",
+        "e6c68529-0191-44a5-9183-53ee5e2eab86"
+      ],
+      "evidence_against": [],
+      "independent_lineages": 2
+    },
+    {
+      "statement": "At least 90% of delivery can be automated",
+      "status": "RESEARCH_SUPPORTED",
+      "evidence_for": [
+        "9405606b-1d6b-4f97-9987-fedc3897278a",
+        "a6fc7d5e-1c7b-4cf7-a9f2-a0ad08be18c8"
+      ],
+      "evidence_against": [],
+      "independent_lineages": 2
+    },
+    {
+      "statement": "Marginal human burden stays low at 10x scale",
+      "status": "RESEARCH_SUPPORTED",
+      "evidence_for": [
+        "c8f77a21-eee7-48ea-bbd7-5977ea7a0432",
+        "e4a87c4b-2f49-4b1a-ad66-4ae5488f2231"
+      ],
+      "evidence_against": [],
+      "independent_lineages": 2
+    },
+    {
+      "statement": "Unit economics can sustain the delivery model",
+      "status": "RESEARCH_SUPPORTED",
+      "evidence_for": [
+        "d0443044-ab8c-440b-b822-1a1f97c71b8f",
+        "2aafa8bd-feff-4563-9e45-870a371f14eb"
+      ],
+      "evidence_against": [],
+      "independent_lineages": 2
+    },
+    {
+      "statement": "Substitutes do not erase the value proposition",
+      "status": "RESEARCH_SUPPORTED",
+      "evidence_for": [
+        "da47cd27-a713-47b6-9358-ed8d8184cccd",
+        "58aad561-6d5d-40e3-b31a-54b0c54915bb"
+      ],
+      "evidence_against": [],
+      "independent_lineages": 2
+    },
+    {
+      "statement": "The product can retain a defensible advantage",
+      "status": "RESEARCH_SUPPORTED",
+      "evidence_for": [
+        "be15188a-8a96-4ea7-8baa-5aea24aadf00",
+        "cd0322e7-787d-44a8-b716-6dd36da806d7"
+      ],
+      "evidence_against": [],
+      "independent_lineages": 2
+    },
+    {
+      "statement": "The product can operate compliantly",
+      "status": "RESEARCH_SUPPORTED",
+      "evidence_for": [
+        "0b5ec76a-6b7d-4739-9b3c-0ca15340610f",
+        "0b25b14e-4318-40b5-8520-22ccc8c456e6"
+      ],
+      "evidence_against": [],
+      "independent_lineages": 2
+    },
+    {
+      "statement": "A verifiable why-now catalyst exists",
+      "status": "RESEARCH_SUPPORTED",
+      "evidence_for": [
+        "5a6f6934-b950-4f8e-ad34-3fd6c3292755",
+        "4a3c4244-64e8-4d69-bb4d-53e764c158bc"
+      ],
+      "evidence_against": [],
+      "independent_lineages": 2
+    }
+  ],
+  "unknowns": [],
+  "competitors": [
+    "Manual workflow",
+    "Horizontal GRC suite"
+  ],
+  "business_model_variants": [
+    "Subscription",
+    "Usage-based API"
+  ],
+  "economics": {
+    "gross_margin_base": 0.8,
+    "source": "fixture"
+  },
+  "automation_ratio": 0.95,
+  "human_minutes_per_customer_at_10x": 1.5,
+  "red_team_findings": [
+    "Resolved market-skeptic challenge"
+  ],
+  "ranking": {
+    "idea_id": "a1de362c-11a0-4d6f-b29f-95574f3c4ba6",
+    "rating": 1512.0,
+    "rank": 1,
+    "match_count": 1,
+    "stability": 1.0
+  },
+  "recommended_experiments": [
+    "Preregistered price-choice test"
+  ],
+  "decision": "BUILD",
+  "reason_codes": [
+    "HARD_GATES_PASSED"
+  ]
+}

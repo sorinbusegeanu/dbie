@@ -7,6 +7,14 @@ from Fully Digital Business Ideas
 System Design v0.6  
 29 August 2026
 
+> **Operational amendment, 30 August 2026:** Reddit Data API credentials are
+> unavailable. The T03 `search_reddit` contract is superseded by
+> `search_community`, backed by official Stack Exchange, Hacker News, and GitHub
+> interfaces plus discovery-only SearXNG Reddit/GitHub Discussion leads. PRAW is
+> optional, and DBIE never automatically fetches Reddit content. The complete
+> authoritative delta is documented in
+> [Community_Search_Adapter.md](Community_Search_Adapter.md).
+
 v0.6 revision focus: free/open-source internal adapter stack behind the ten stable DBIE tool contracts; SearXNG for metasearch; Crawl4AI, Trafilatura, and Playwright for layered page acquisition; Docling and PyMuPDF for document parsing; PRAW for Reddit; PyGithub/GitHub APIs for software ecosystem research; official regulator adapters including EUR-Lex; isolated Docker-based Python execution; PostgreSQL/SQLAlchemy; pgvector plus a local BGE/E5-family embedding model; and explicit adapter-selection, fallback, provenance, resource, and security policies.
 
 v0.5 retained focus: explicit runtime and harness architecture; CrewAI as the sole agent harness; custom deterministic domain/control code; provider-neutral model routing; vLLM and Ollama as interchangeable serving backends; Ministral 3 14B as a lower-VRAM primary-model option alongside gpt-oss-20b; and a strict separation between agent orchestration, domain decisions, inference serving, and tools.

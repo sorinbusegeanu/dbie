@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -29,6 +30,61 @@ class DashboardFile:
     size: int
     modified_at: datetime
     suffix: str
+    display_name: str
+    artifact_type: str
+    detail: str
+    preview: str | None = None
+
+
+@dataclass(frozen=True)
+class DashboardFunnelStage:
+    key: str
+    label: str
+    target: str
+    actual: int | None
+
+
+_FUNNEL_STAGES = (
+    ("observed_signals", "Observed problems / signals", "500"),
+    ("raw_ideas", "Raw business ideas", "250–500"),
+    (
+        "evidence_qualified",
+        "Digital-only + evidence-qualified candidates",
+        "50–100",
+    ),
+    ("assumption_validated", "Assumption-validated candidates", "15–25"),
+    ("red_team_survivors", "Red-team survivors", "5–10"),
+    ("experiment_candidates", "Experiment candidates", "3–5"),
+    (
+        "observed_market_evidence",
+        "Observed market behavior / prototype evidence",
+        "Required",
+    ),
+    (
+        "ranked_recommendations",
+        "Ranked BUILD / KILL / ITERATE recommendations",
+        "3–5",
+    ),
+)
+
+_CONVERSATION_LABELS = {
+    "activity.log": "Run activity",
+    "market_research_crew.log": "Market research crew",
+    "market_research_summary.log": "Market research",
+    "market_research_dialogue.log": "Market research crew",
+    "ideation_crew.log": "Ideation crew",
+    "ideation_summary.log": "Ideation",
+    "ideation_dialogue.log": "Ideation crew",
+    "evidence_validation_crew.log": "Evidence & validation crew",
+    "evidence_validation_summary.log": "Evidence & validation",
+    "evidence_validation_dialogue.log": "Evidence & validation crew",
+    "red_team_crew.log": "Red-team crew",
+    "red_team_summary.log": "Red-team",
+    "red_team_dialogue.log": "Red-team crew",
+    "portfolio_crew.log": "Portfolio decision crew",
+    "portfolio_summary.log": "Portfolio decision",
+    "portfolio_dialogue.log": "Portfolio decision crew",
+}
 
 
 class DashboardFilesystem:
@@ -147,6 +203,9 @@ class DashboardFilesystem:
                 continue
             stat = resolved.stat()
             relative = candidate.relative_to(directory).as_posix()
+            display_name, artifact_type, detail, preview = self._describe_file(
+                resolved, kind
+            )
             files.append(
                 DashboardFile(
                     relative_path=relative,
@@ -154,9 +213,35 @@ class DashboardFilesystem:
                     size=stat.st_size,
                     modified_at=datetime.fromtimestamp(stat.st_mtime, UTC),
                     suffix=candidate.suffix.lower(),
+                    display_name=display_name,
+                    artifact_type=artifact_type,
+                    detail=detail,
+                    preview=preview,
                 )
             )
         return sorted(files, key=lambda item: (item.relative_path.lower()))
+
+    def read_funnel(self, run_id: str) -> list[DashboardFunnelStage]:
+        actual: dict[str, int] = {}
+        try:
+            raw = self.read_text(run_id, "deliverables", "run-overview.json")
+            payload = json.loads(raw)
+            values = payload.get("funnel", {}) if isinstance(payload, dict) else {}
+            if isinstance(values, dict):
+                actual = {
+                    key: value
+                    for key, value in values.items()
+                    if isinstance(key, str)
+                    and isinstance(value, int)
+                    and not isinstance(value, bool)
+                    and value >= 0
+                }
+        except (DashboardPathError, json.JSONDecodeError):
+            pass
+        return [
+            DashboardFunnelStage(key, label, target, actual.get(key))
+            for key, label, target in _FUNNEL_STAGES
+        ]
 
     def resolve_file(self, run_id: str, kind: str, relative_path: str) -> Path:
         directory = self._kind_directory(run_id, kind)
@@ -196,6 +281,80 @@ class DashboardFilesystem:
                 raise DashboardPathError("unknown artifact kind")
             return resolved
         return directory
+
+    def _describe_file(
+        self, path: Path, kind: str
+    ) -> tuple[str, str, str, str | None]:
+        if kind == "conversations":
+            lines = self._read_display_lines(path)
+            label = _CONVERSATION_LABELS.get(
+                path.name, path.stem.replace("_", " ").replace("-", " ").title()
+            )
+            preview = next((line.strip() for line in reversed(lines) if line.strip()), None)
+            if path.name.endswith("_dialogue.log"):
+                artifact_type = "Actual CrewAI dialogue"
+                detail = "Open the complete visible task, agent answer, and tool exchange"
+            elif path.name == "activity.log":
+                artifact_type = "Runtime activity"
+                detail = "Stage lifecycle events"
+            else:
+                artifact_type = "Deterministic stage summary"
+                detail = "No CrewAI dialogue was executed for this fixture"
+            return (
+                label,
+                artifact_type,
+                detail,
+                preview,
+            )
+
+        if path.suffix.lower() == ".json":
+            payload = self._read_json_object(path)
+            title = payload.get("title") if payload else None
+            decision = payload.get("decision") if payload else None
+            artifact_marker = payload.get("artifact_type") if payload else None
+            if artifact_marker == "run_overview":
+                return "Run funnel and outcomes", "Run overview", "Current run counts", None
+            if isinstance(title, str) and title.strip():
+                detail = f"Recommendation: {decision}" if isinstance(decision, str) else "Structured dossier"
+                return title.strip(), "Decision record", detail, None
+            return path.stem.replace("_", " ").title(), "Structured data", "JSON", None
+
+        if path.suffix.lower() == ".md":
+            lines = self._read_display_lines(path)
+            title = next(
+                (line.removeprefix("# ").strip() for line in lines if line.startswith("# ")),
+                path.stem.replace("_", " ").title(),
+            )
+            decision = next(
+                (
+                    line.split("**", 2)[1]
+                    for line in lines
+                    if line.startswith("- Decision: **") and line.count("**") >= 2
+                ),
+                None,
+            )
+            detail = f"Recommendation: {decision}" if decision else "Human-readable analysis"
+            return title, "Business case", detail, None
+
+        return path.stem.replace("_", " ").title(), "File", path.suffix[1:].upper() or "Artifact", None
+
+    def _read_display_lines(self, path: Path) -> list[str]:
+        if path.stat().st_size > self.max_text_bytes:
+            return []
+        try:
+            return path.read_text(encoding="utf-8").splitlines()
+        except UnicodeDecodeError:
+            return []
+
+    def _read_json_object(self, path: Path) -> dict[str, object]:
+        lines = self._read_display_lines(path)
+        if not lines:
+            return {}
+        try:
+            value = json.loads("\n".join(lines))
+        except json.JSONDecodeError:
+            return {}
+        return value if isinstance(value, dict) else {}
 
     @staticmethod
     def _is_within(candidate: Path, parent: Path) -> bool:

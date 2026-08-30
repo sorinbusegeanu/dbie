@@ -8,6 +8,11 @@ This addendum contains only implementation changes introduced by System
 Design v0.7. It assumes the v0.5 implementation plan and v0.6
 OSS-adapter addendum remain in force.
 
+> **Operational amendment, 30 August 2026:** The inherited v0.6 T03
+> implementation is the credential-free `search_community` adapter documented
+> in [Community_Search_Adapter.md](Community_Search_Adapter.md). PRAW is not a
+> runtime or readiness dependency.
+
 # 1. Scope Delta
 
 Extend DBIE from `Idea -> Evaluate -> Experiment` to a persistent

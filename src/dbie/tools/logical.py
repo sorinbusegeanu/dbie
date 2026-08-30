@@ -42,13 +42,15 @@ class FetchPageInput(ToolInput):
     site_traversal: bool = False
 
 
-class SearchRedditInput(ToolInput):
+class SearchCommunityInput(ToolInput):
     query: str = Field(min_length=1)
-    subreddits: list[str] = Field(default_factory=list)
+    platforms: list[
+        Literal["STACK_EXCHANGE", "HACKER_NEWS", "GITHUB", "REDDIT_INDEX"]
+    ] = Field(default_factory=list)
     date_from: date | None = None
     sort: Literal["RELEVANCE", "NEW", "TOP"] = "RELEVANCE"
-    max_threads: int = Field(default=20, ge=1, le=100)
-    include_comments: bool = True
+    max_results: int = Field(default=20, ge=1, le=100)
+    include_replies: bool = True
 
 
 class SearchCompaniesInput(ToolInput):
@@ -111,6 +113,9 @@ class DatabaseQueryInput(ToolInput):
         "SAVE_EVALUATION",
         "GET_OUTCOMES",
         "GET_SOURCE_LINEAGE",
+        "LIST_IDEAS",
+        "LIST_ASSUMPTIONS",
+        "LIST_EVIDENCE",
     ]
     parameters: dict[str, Any] = Field(default_factory=dict)
 
@@ -138,7 +143,7 @@ class SemanticMemorySearchInput(ToolInput):
 LOGICAL_TOOL_INPUTS: dict[ToolName, type[ToolInput]] = {
     ToolName.WEB_SEARCH: WebSearchInput,
     ToolName.FETCH_PAGE: FetchPageInput,
-    ToolName.SEARCH_REDDIT: SearchRedditInput,
+    ToolName.SEARCH_COMMUNITY: SearchCommunityInput,
     ToolName.SEARCH_COMPANIES: SearchCompaniesInput,
     ToolName.SEARCH_GITHUB: SearchGitHubInput,
     ToolName.SEARCH_REGULATIONS: SearchRegulationsInput,

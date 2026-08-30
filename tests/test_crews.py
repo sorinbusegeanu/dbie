@@ -65,3 +65,11 @@ def test_every_significant_task_class_has_a_specialized_role() -> None:
     assert TASK_MODEL_ROLES[TaskClass.EVIDENCE_RECONCILIATION] is ModelRole.THINKER
     assert TASK_MODEL_ROLES[TaskClass.TEST_FIX_LOOP] is ModelRole.BUILDER
     assert TASK_MODEL_ROLES[TaskClass.INDEPENDENT_RED_TEAM] is ModelRole.JUDGE
+
+
+def test_opportunity_synthesizer_requires_a_substantial_description() -> None:
+    synthesizer = next(
+        item for item in SYNTHESIS_SPECS if item.role == "Opportunity Synthesizer"
+    )
+
+    assert "at least 100 words" in synthesizer.goal

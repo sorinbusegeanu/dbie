@@ -36,6 +36,11 @@ class AdapterResult(BaseModel):
     warnings: list[str] = Field(default_factory=list)
     resource_usage: dict[str, float] = Field(default_factory=dict)
     cost: float = Field(default=0, ge=0)
+    executed_adapter: str | None = None
+    retry_count: int = Field(default=0, ge=0)
+    fallback_count: int = Field(default=0, ge=0)
+    error_category: str | None = None
+    attempts: list[str] = Field(default_factory=list)
     started_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     ended_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     adapter_version: str | None = None

@@ -37,7 +37,11 @@ class FetchPageRouter(ToolAdapter):
             request.arguments.get("extract_schema")
             or request.arguments.get("site_traversal")
         )
+        force_browser = request.arguments.get("render_js") == "YES"
         for index, adapter in enumerate(self.adapters):
+            if force_browser and adapter.name != "playwright":
+                attempts.append(f"{adapter.name}:SKIPPED_JS_REQUIRED")
+                continue
             if force_complex and index == 0:
                 attempts.append(f"{adapter.name}:SKIPPED_COMPLEX_REQUEST")
                 continue
@@ -55,6 +59,11 @@ class FetchPageRouter(ToolAdapter):
             if quality.get("meaningful"):
                 result.payload["adapter_attempts"] = [*attempts, f"{adapter.name}:USED"]
                 result.warnings = [*warnings, *result.warnings]
+                result.executed_adapter = adapter.name
+                result.fallback_count = sum(
+                    not attempt.startswith(f"{adapter.name}:") for attempt in attempts
+                )
+                result.attempts = [*attempts, f"{adapter.name}:USED"]
                 return result
             attempts.append(f"{adapter.name}:LOW_QUALITY")
             warnings.extend(result.warnings)
@@ -69,6 +78,9 @@ class FetchPageRouter(ToolAdapter):
                 "adapter_attempts": attempts,
             },
             warnings=[*warnings, "NO_ADAPTER_PRODUCED_MEANINGFUL_CONTENT"],
+            executed_adapter=self.name,
+            fallback_count=len(attempts),
+            attempts=attempts,
             started_at=started,
             ended_at=datetime.now(UTC),
         )

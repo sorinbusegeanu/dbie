@@ -7,6 +7,12 @@ from Fully Digital Business Ideas
 System Design v0.7\
 29 August 2026
 
+> **Operational amendment, 30 August 2026:** T03 is now the credential-free
+> `search_community` tool defined in
+> [Community_Search_Adapter.md](Community_Search_Adapter.md). It replaces the
+> Reddit/PRAW-only contract while preserving the ten-tool surface and model
+> phase assignments.
+
 v0.7 revision focus: venture lifecycle, autonomous MVP factory, dual
 human/agent product contracts, capability reuse, and portfolio
 intelligence.

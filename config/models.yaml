@@ -35,7 +35,7 @@ profiles:
     maximum_context_tokens: 48000
     request_context_tokens: 32768
     reasoning: true
-    tools: false
+    tools: true
     structured_output: true
     active_concurrency: 1
   qwen3_14b_64k:
@@ -50,10 +50,10 @@ profiles:
     active_concurrency: 1
 roles:
   THINKER:
-    primary_profile: deepseek_r1_14b_48k
-    challenger_profile: qwen3_14b_64k
-    fallback_profiles: [gpt_oss_20b_64k]
-    context_tokens: 32768
+    primary_profile: ministral_3_14b_64k
+    challenger_profile: gpt_oss_20b_64k
+    fallback_profiles: [qwen3_14b_64k]
+    context_tokens: 16384
     thinking_mode: medium
     challenger_fraction: 0.10
   DOER:

@@ -14,6 +14,7 @@ from dbie.tools.adapters.base import (
     AdapterResult,
     ToolAdapter,
 )
+from dbie.tools.adapters.company_public_sources import CompanyPublicSourcesAdapter
 from dbie.tools.adapters.crawl4ai import Crawl4AIAdapter
 from dbie.tools.adapters.docker_python import DockerPythonAdapter
 from dbie.tools.adapters.docling import DoclingAdapter
@@ -108,6 +109,44 @@ def test_crawl4ai_service_contract_extracts_markdown() -> None:
     assert result.payload["quality"]["meaningful"] is True
 
 
+def test_crawl4ai_092_contract_extracts_structured_markdown_and_links() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/crawl"
+        return httpx.Response(
+            200,
+            json={
+                "success": True,
+                "results": [
+                    {
+                        "markdown": {"raw_markdown": "useful text " * 30},
+                        "links": {
+                            "internal": [{"href": "https://example.test/about"}],
+                            "external": [{"href": "https://source.test"}],
+                        },
+                    }
+                ],
+            },
+        )
+
+    adapter = Crawl4AIAdapter(
+        "http://crawl.test",
+        httpx.Client(
+            transport=httpx.MockTransport(handler), base_url="http://crawl.test"
+        ),
+    )
+
+    result = adapter.execute(
+        adapter_request("fetch_page", {"url": "https://example.test"})
+    )
+
+    assert result.payload["content"] == "useful text " * 30
+    assert result.payload["quality"]["meaningful"] is True
+    assert result.payload["links"] == [
+        {"href": "https://example.test/about", "relationship": "internal"},
+        {"href": "https://source.test", "relationship": "external"},
+    ]
+
+
 class RoutingAdapter(ToolAdapter):
     capabilities = AdapterCapabilities(operations={"fetch_page"})
 
@@ -160,6 +199,24 @@ def test_fetch_router_escalates_low_quality_to_browser() -> None:
     ]
 
 
+def test_fetch_router_honors_explicit_javascript_requirement() -> None:
+    static = RoutingAdapter("trafilatura", True)
+    crawl = RoutingAdapter("crawl4ai", True)
+    browser = RoutingAdapter("playwright", True)
+    router = FetchPageRouter([static, crawl, browser])
+
+    result = router.execute(
+        adapter_request(
+            "fetch_page",
+            {"url": "https://example.test/app", "render_js": "YES"},
+        )
+    )
+
+    assert (static.calls, crawl.calls, browser.calls) == (0, 0, 1)
+    assert result.executed_adapter == "playwright"
+    assert result.fallback_count == 2
+
+
 def test_company_resolution_requires_deterministic_threshold() -> None:
     left = identity("Acme AG", "https://acme.example", jurisdiction="CH")
     same = identity("ACME", "acme.example", jurisdiction="CH")
@@ -189,6 +246,42 @@ def test_praw_normalizes_removed_content_without_credentials_in_output() -> None
     assert result.payload["threads"][0]["body"] is None
 
 
+def test_praw_preserves_comment_thread_lineage() -> None:
+    comment = SimpleNamespace(
+        id="c1",
+        parent_id="t3_p1",
+        body="A repeated workaround",
+        author="operator",
+        score=4,
+        created_utc=1,
+        permalink="/r/workflows/comments/p1/c1",
+    )
+    comments = SimpleNamespace(
+        replace_more=lambda **kwargs: None, list=lambda: [comment]
+    )
+    post = SimpleNamespace(
+        id="p1",
+        subreddit="workflows",
+        title="Repeated pain",
+        selftext="Details",
+        author="buyer",
+        score=7,
+        created_utc=0,
+        permalink="/r/workflows/p1",
+        comments=comments,
+    )
+    subreddit = SimpleNamespace(search=lambda *args, **kwargs: [post])
+    client = SimpleNamespace(subreddit=lambda names: subreddit)
+
+    result = PrawRedditAdapter(client).execute(
+        adapter_request("search_reddit", {"query": "pain", "include_comments": True})
+    )
+
+    stored = result.payload["threads"][0]["comments"][0]
+    assert stored["thread_id"] == "p1"
+    assert stored["parent_id"] == "t3_p1"
+
+
 def test_pygithub_marks_popularity_as_not_demand_evidence() -> None:
     repository = SimpleNamespace(
         full_name="owner/project",
@@ -208,6 +301,100 @@ def test_pygithub_marks_popularity_as_not_demand_evidence() -> None:
     )
     assert result.payload["repositories"][0]["license"] == "MIT"
     assert result.payload["popularity_is_demand_evidence"] is False
+
+
+def test_pygithub_normalizes_issue_activity() -> None:
+    issue = SimpleNamespace(
+        id=7,
+        number=3,
+        title="Missing automation",
+        html_url="https://github.com/owner/project/issues/3",
+        state="open",
+        comments=5,
+        created_at=datetime(2026, 1, 1, tzinfo=UTC),
+        updated_at=datetime(2026, 1, 2, tzinfo=UTC),
+        repository_url="https://api.github.com/repos/owner/project",
+    )
+    client = SimpleNamespace(search_issues=lambda **kwargs: [issue])
+
+    result = PyGithubAdapter(client).execute(
+        adapter_request("search_github", {"query": "automation", "mode": "ISSUES"})
+    )
+
+    assert result.payload["issues"][0]["comments"] == 5
+    assert result.raw_sources[0]["source_type"] == "github_issue"
+
+
+class CompanySearchAdapter(ToolAdapter):
+    name = "company-search"
+    capabilities = AdapterCapabilities(operations={"web_search"})
+
+    def health(self):
+        return AdapterHealth(name=self.name, available=True)
+
+    def execute(self, request):
+        return AdapterResult(
+            payload={
+                "results": [
+                    {
+                        "title": "Acme AG",
+                        "canonical_url": "https://acme.test",
+                        "snippet": "Compliance platform",
+                    }
+                ]
+            },
+            raw_sources=[
+                {
+                    "source_identifier": "https://acme.test",
+                    "source_url": "https://acme.test",
+                    "source_type": "search_result",
+                }
+            ],
+        )
+
+
+def test_company_composition_retains_field_level_public_source_provenance() -> None:
+    wikidata = httpx.Client(
+        transport=httpx.MockTransport(
+            lambda request: httpx.Response(
+                200,
+                json={
+                    "search": [
+                        {
+                            "id": "Q1",
+                            "label": "Acme",
+                            "description": "Compliance software company",
+                            "concepturi": "https://www.wikidata.org/entity/Q1",
+                        }
+                    ]
+                },
+            )
+        ),
+        base_url="https://www.wikidata.org",
+    )
+    opencorporates = httpx.Client(
+        transport=httpx.MockTransport(
+            lambda request: httpx.Response(200, json={"results": {"companies": []}})
+        ),
+        base_url="https://api.opencorporates.com",
+    )
+    adapter = CompanyPublicSourcesAdapter(
+        CompanySearchAdapter(),
+        wikidata_client=wikidata,
+        opencorporates_client=opencorporates,
+    )
+
+    result = adapter.execute(adapter_request("search_companies", {"query": "Acme"}))
+
+    assert len(result.payload["companies"]) == 2
+    wikidata_record = next(
+        item
+        for item in result.payload["companies"]
+        if item["identity"]["registry_id"] == "Q1"
+    )
+    assert wikidata_record["attributes"]["positioning"]["source_url"] == (
+        "https://www.wikidata.org/entity/Q1"
+    )
 
 
 def test_eurlex_returns_only_normalized_official_records() -> None:
@@ -366,7 +553,7 @@ def test_complete_oss_stack_routes_exactly_the_ten_logical_tools(tmp_path) -> No
     assert gateway.registry.names() >= {
         "searxng",
         "fetch_page_router",
-        "praw",
+        "community_search",
         "company_public_sources",
         "pygithub",
         "regulatory_registry",

@@ -20,11 +20,30 @@ uv run dbie benchmark --profile gpt_oss_20b_64k
 uv run pytest
 ```
 
-`acceptance-run` is deliberately offline and deterministic. It executes all 11
-MVP Flow stages, persists 50 raw-idea fixture provenance, exercises the hard
-eligibility/evidence/red-team gates, creates a pairwise portfolio result, and
-writes resumable state and dossiers under `runs/<run-id>/`. It is the
-reproducibility acceptance path, not a claim of newly collected market evidence.
+`live-run` executes all 14 MVP Flow stages with CrewAI, the configured Ollama
+role models, and the real logical tools. It defaults to the v0.6 funnel targets
+of 500 grounded signals, 250 raw ideas, and up to 25 validation candidates.
+Use `--signals`, `--ideas`, and `--candidates` for a bounded first run. Every
+stage checkpoint can be resumed with `uv run dbie resume-run <run-id>`.
+
+A recommended first all-crews execution is:
+
+```bash
+DBIE_DATABASE_URL='postgresql+psycopg://dbie@127.0.0.1:5432/dbie' \
+CREWAI_TRACING_ENABLED=false \
+uv run dbie live-run \
+  --mandate "Find fully digital, autonomously scalable business opportunities" \
+  --signals 50 \
+  --ideas 25 \
+  --candidates 5 \
+  --no-strict-targets
+```
+
+Omitting the four bounded-target options runs the complete strict
+500-signal/250-idea/25-candidate funnel.
+
+`acceptance-run` remains the fast offline regression path for deterministic
+domain gates and dashboard artifacts.
 
 ## Run dashboard
 
@@ -46,7 +65,9 @@ CrewAI sees exactly ten stable logical tools. Their implementations remain
 hidden behind the Tool Gateway:
 
 - SearXNG; Trafilatura then Crawl4AI then Playwright page routing
-- PRAW, public company-source resolution, and PyGithub
+- credential-free community search across Stack Exchange, Hacker News, GitHub
+  issues, and search-index discovery leads; public company-source resolution;
+  and PyGithub
 - EUR-Lex plus official FINMA/EBA/ECB/ESMA/SEC registry adapters
 - Docling then PyMuPDF document routing
 - network-disabled, read-only, capability-free, non-root Docker Python execution
@@ -54,24 +75,45 @@ hidden behind the Tool Gateway:
 - PostgreSQL/pgvector in production, with SQLite exact-vector fallback in tests
 - local CPU BGE embeddings through FastEmbed
 
-External services are optional for unit tests. Production endpoints and actor
+External services are optional for unit tests. Live-run endpoints and actor
 allowlists are configured in `config/tools.yaml`; credentials are read only by
 adapter construction and are never included in model context.
+
+Start already-installed container images without downloading replacements:
+
+```bash
+docker compose -f deploy/compose.yaml up -d
+```
+
+Then run `DBIE_DATABASE_URL='postgresql+psycopg://dbie@127.0.0.1:5432/dbie' uv run dbie doctor`. The strict doctor checks Ollama, every configured
+model, all ten logical adapter routes, and the local BGE embedding cache before
+a live run starts.
 
 The default development database is `runs/dbie.sqlite3`. Override any setting
 with environment variables prefixed by `DBIE_`; for example,
 `DBIE_DATABASE_URL=postgresql+psycopg://...`.
 
+Compose uses a localhost-only Crawl4AI development token. Set
+`DBIE_CRAWL4AI_API_TOKEN` to the same custom value for both Compose and DBIE in
+non-local deployments.
+
+### Community evidence without Reddit credentials
+
+The ten-tool surface now exposes `search_community` instead of
+`search_reddit`. It collects qualitative signals from official Stack Exchange,
+Hacker News, and GitHub interfaces. SearXNG may return Reddit and GitHub
+Discussion URLs only as `DISCOVERY_LEAD` records; DBIE never automatically
+fetches Reddit content. PRAW is optional and does not block strict readiness.
+See [the community adapter amendment](docs/Community_Search_Adapter.md).
+
 ## Ollama models
 
-`gpt-oss:20b-64k` is the default profile. The Ollama registry publishes the
-Ministral base as `ministral-3:14b`, so the configured fallback tag is created
-locally with the requested 64k context:
+`gpt-oss:20b-64k` and `ministral-3:14b-64k` are configured local profiles.
+DBIE never pulls models during doctor or live execution. Verify the existing
+local tags with:
 
 ```bash
-ollama pull ministral-3:14b
-ollama create ministral-3:14b-64k \
-  -f config/ollama/Ministral-3-14B-64K.Modelfile
+ollama list
 uv run dbie doctor
 ```
 
@@ -80,8 +122,9 @@ uv run dbie doctor
 The v0.7 NemoClaw model-phase design is implemented above the provider router.
 Crews declare a logical role rather than a model name:
 
-- `THINKER` → `deepseek-r1:14b-48k` for synthesis, assumptions, reconciliation,
-  experiment design, and portfolio reasoning
+- `THINKER` → `ministral-3:14b-64k` for synthesis, assumptions,
+  reconciliation, experiment design, and portfolio reasoning; GPT-OSS is the
+  independent challenger
 - `DOER` → `qwen3:14b-64k` for high-volume research, extraction, and tool use;
   `ministral-3:14b-64k` is the challenger/fallback
 - `BUILDER` → `qwen3:14b-64k` for later governed MVP implementation/test loops

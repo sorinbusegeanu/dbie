@@ -31,7 +31,7 @@ def test_specialized_model_roles_are_configuration_not_crew_logic() -> None:
     models = load_models_config(load_settings())
 
     assert models.profiles[models.roles[ModelRole.THINKER].primary_profile].model == (
-        "deepseek-r1:14b-48k"
+        "ministral-3:14b-64k"
     )
     assert models.profiles[models.roles[ModelRole.DOER].primary_profile].model == (
         "qwen3:14b-64k"

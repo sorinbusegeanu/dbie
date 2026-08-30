@@ -25,9 +25,11 @@ class FetchPageOutput(ToolOutput):
     quality: dict[str, Any] = Field(default_factory=dict)
 
 
-class RedditOutput(ToolOutput):
-    threads: list[dict[str, Any]]
+class CommunityOutput(ToolOutput):
+    signals: list[dict[str, Any]]
+    discovery_leads: list[dict[str, Any]]
     evidence_type: str
+    reddit_content_automatically_fetched: Literal[False] = False
 
 
 class CompaniesOutput(ToolOutput):
@@ -72,7 +74,7 @@ class SemanticMemoryOutput(ToolOutput):
 LOGICAL_TOOL_OUTPUTS: dict[ToolName, type[ToolOutput]] = {
     ToolName.WEB_SEARCH: WebSearchOutput,
     ToolName.FETCH_PAGE: FetchPageOutput,
-    ToolName.SEARCH_REDDIT: RedditOutput,
+    ToolName.SEARCH_COMMUNITY: CommunityOutput,
     ToolName.SEARCH_COMPANIES: CompaniesOutput,
     ToolName.SEARCH_GITHUB: GitHubOutput,
     ToolName.SEARCH_REGULATIONS: RegulationsOutput,

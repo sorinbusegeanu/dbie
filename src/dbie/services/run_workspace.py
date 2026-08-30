@@ -10,6 +10,7 @@ from pathlib import Path
 from uuid import uuid4
 
 _RUN_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
+_CONVERSATION_FILE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*\.log$")
 
 
 @dataclass(frozen=True)
@@ -39,11 +40,20 @@ class RunWorkspaceManager:
 
     def append_activity(self, run_id: str, message: str) -> Path:
         """Append a visible runtime event; never accepts hidden model reasoning."""
+        return self.append_visible_output(run_id, "activity.log", message)
+
+    def append_visible_output(
+        self, run_id: str, filename: str, message: str
+    ) -> Path:
+        """Persist only explicitly supplied, CrewAI-visible execution output."""
+        if not _CONVERSATION_FILE.fullmatch(filename):
+            raise ValueError("conversation filename must be a safe .log basename")
         workspace = self.ensure(run_id)
-        path = workspace.conversations / "activity.log"
+        path = workspace.conversations / filename
         timestamp = datetime.now(UTC).isoformat(timespec="seconds")
         with path.open("a", encoding="utf-8") as stream:
-            stream.write(f"[{timestamp}] {message.rstrip()}\n")
+            for line in message.rstrip().splitlines() or [""]:
+                stream.write(f"[{timestamp}] {line}\n")
         return path
 
     def _point_current_to(self, run_id: str) -> None:

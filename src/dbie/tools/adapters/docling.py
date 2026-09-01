@@ -48,11 +48,12 @@ class DoclingAdapter(ToolAdapter):
         document = conversion.document
         markdown = document.export_to_markdown()
         structure = document.export_to_dict()
+        max_chars = int(request.arguments.get("max_chars", 50_000))
         ended = datetime.now(UTC)
         return AdapterResult(
             payload={
                 "source": request.arguments["source"],
-                "content": markdown,
+                "content": markdown[:max_chars],
                 "pages": structure.get("pages", {}),
                 "sections": structure.get("texts", []),
                 "tables": structure.get("tables", []),

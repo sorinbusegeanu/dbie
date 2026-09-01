@@ -39,6 +39,13 @@ class GatewayCrewAITool(BaseTool):
     context: CrewAIToolContext = Field(exclude=True)
 
     def _run(self, **kwargs: Any) -> str:
+        arguments = dict(kwargs)
+        if self.logical_tool is ToolName.DATABASE_QUERY:
+            operation = arguments.get("operation")
+            if operation in {"LIST_IDEAS", "LIST_ASSUMPTIONS", "LIST_EVIDENCE"}:
+                parameters = dict(arguments.get("parameters") or {})
+                parameters.setdefault("run_id", self.context.run_id)
+                arguments["parameters"] = parameters
         result = self.gateway.invoke(
             ToolCallEnvelope(
                 run_id=self.context.run_id,
@@ -48,7 +55,7 @@ class GatewayCrewAITool(BaseTool):
                 candidate_id=self.context.candidate_id,
                 assumption_id=self.context.assumption_id,
                 tool=self.logical_tool,
-                arguments=kwargs,
+                arguments=arguments,
                 purpose=f"CrewAI {self.context.actor_id} invoked {self.logical_tool.value}",
                 budget=ToolBudget(),
             )

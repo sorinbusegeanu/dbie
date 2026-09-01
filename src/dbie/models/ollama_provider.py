@@ -121,7 +121,10 @@ class OllamaProvider(LLMProvider):
             "messages": [_ollama_message(message) for message in request.messages],
             "stream": False,
             "keep_alive": self.settings.keep_alive,
-            "options": {"num_ctx": context_tokens},
+            "options": {
+                "num_ctx": context_tokens,
+                "num_predict": profile.maximum_output_tokens,
+            },
         }
         if request.temperature is not None:
             body["options"]["temperature"] = request.temperature

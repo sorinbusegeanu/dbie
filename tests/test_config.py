@@ -31,19 +31,27 @@ def test_specialized_model_roles_are_configuration_not_crew_logic() -> None:
     models = load_models_config(load_settings())
 
     assert models.profiles[models.roles[ModelRole.THINKER].primary_profile].model == (
-        "deepseek-r1:14b-48k"
+        "qwen3:14b-64k"
     )
     assert models.profiles[
         models.roles[ModelRole.THINKER].challenger_profile
-    ].model == "qwen3:14b-64k"
+    ].model == "ministral-3:14b-64k"
     assert models.roles[ModelRole.THINKER].thinking_mode == "high"
+    assert models.roles[ModelRole.JUDGE].thinking_mode == "low"
     assert models.roles[ModelRole.THINKER].context_tokens == 32768
+    assert models.roles[ModelRole.THINKER].fallback_profiles == [
+        "ministral_3_14b_64k"
+    ]
     assert models.profiles[models.roles[ModelRole.DOER].primary_profile].model == (
         "qwen3:14b-64k"
     )
+    assert models.roles[ModelRole.DOER].fallback_profiles == [
+        "ministral_3_14b_64k"
+    ]
     assert models.profiles[models.roles[ModelRole.BUILDER].primary_profile].model == (
         "qwen3:14b-64k"
     )
     assert models.profiles[models.roles[ModelRole.JUDGE].primary_profile].model == (
         "gpt-oss:20b-64k"
     )
+    assert all(profile.family != "deepseek-r1" for profile in models.profiles.values())

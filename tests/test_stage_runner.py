@@ -39,8 +39,8 @@ def _runner(records: list[ToolAuditRecord]) -> CrewAIStageRunner:
                 config=SimpleNamespace(
                     roles={
                         ModelRole.THINKER: ModelRoleConfig(
-                            primary_profile="deepseek",
-                            challenger_profile="qwen",
+                            primary_profile="qwen",
+                            challenger_profile="ministral",
                             context_tokens=32768,
                         )
                     }
@@ -72,6 +72,28 @@ def test_live_stage_accepts_successful_attributed_required_tool_call() -> None:
     )
 
     _runner([record])._verify_required_tools(_request(ToolName.WEB_SEARCH))
+
+
+def test_live_stage_rejects_failed_adapter_result_as_required_call() -> None:
+    record = ToolAuditRecord(
+        envelope=ToolCallEnvelope(
+            run_id="run-1",
+            stage_id="stage-1",
+            task_id="task-1",
+            actor_id="ResearchPlanner",
+            tool=ToolName.DATABASE_QUERY,
+            arguments={"operation": "GET_ASSUMPTION", "parameters": {}},
+            purpose="ground the plan",
+        ),
+        result=ToolResult(
+            tool=ToolName.DATABASE_QUERY,
+            error_category="ADAPTER_FAILURE",
+        ),
+        allowed=True,
+    )
+
+    with pytest.raises(ValueError, match="omitted required real tools: database_query"):
+        _runner([record])._verify_required_tools(_request(ToolName.DATABASE_QUERY))
 
 
 def test_initial_task_prompt_discloses_every_required_tool() -> None:

@@ -26,6 +26,7 @@ class ModelProfile(BaseModel):
     family: str
     maximum_context_tokens: int = Field(gt=0)
     request_context_tokens: int = Field(gt=0)
+    maximum_output_tokens: int = Field(default=8192, gt=0)
     reasoning: bool = False
     tools: bool = False
     structured_output: bool = False

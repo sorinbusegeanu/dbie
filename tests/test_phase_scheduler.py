@@ -45,7 +45,7 @@ def test_scheduler_batches_model_affine_tasks_between_barriers() -> None:
         ModelRole.THINKER,
     ]
     assert [len(phase.tasks) for phase in phases] == [2, 2, 1]
-    assert phases[0].resolved_model_id == "deepseek-r1:14b-48k"
+    assert phases[0].resolved_model_id == "qwen3:14b-64k"
     assert phases[1].resolved_model_id == "qwen3:14b-64k"
 
 
@@ -78,8 +78,8 @@ def test_execution_checkpoints_every_residency_and_counts_switches(tmp_path) -> 
 
     assert checkpoints == result.phase_ids
     assert released == [phase.resolved_model_id for phase in phases]
-    assert result.switch_count == 2
+    assert result.switch_count == 1
     assert result.task_outputs["judge"] == "gpt-oss:20b-64k"
     persisted = performance.phases_for_run("run")
     assert [item.phase_id for item in persisted] == result.phase_ids
-    assert sum(item.switch_count for item in persisted) == 2
+    assert sum(item.switch_count for item in persisted) == 1

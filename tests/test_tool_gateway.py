@@ -14,6 +14,7 @@ from dbie.tools.adapters.registry import AdapterRegistry
 from dbie.tools.contracts import ToolBudget, ToolCallEnvelope, ToolName
 from dbie.tools.gateway import ToolGateway
 from dbie.tools.permissions import ToolPermissionPolicy
+from dbie.tools.logical_outputs import DocumentOutput
 
 
 class FakeAdapter(ToolAdapter):
@@ -81,6 +82,24 @@ def test_denied_call_is_rejected_and_audited() -> None:
         value.invoke(envelope(actor="Generator"))
 
     assert value.audit.records[-1].allowed is False
+
+
+def test_document_output_drops_large_internal_parser_structure() -> None:
+    output = DocumentOutput.model_validate(
+        {
+            "source": "https://example.test/document",
+            "content": "bounded",
+            "file_hash": "hash",
+            "pages": {"1": {"large": "internal"}},
+            "tables": [{"large": "internal"}],
+        }
+    )
+
+    assert output.model_dump() == {
+        "source": "https://example.test/document",
+        "content": "bounded",
+        "file_hash": "hash",
+    }
 
 
 def test_allowed_call_is_normalized_cached_and_audited() -> None:

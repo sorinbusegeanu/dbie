@@ -112,7 +112,11 @@ class ModelRouter:
             selection=selection,
             profile_name=profile_name,
             model_id=self.config.profiles[profile_name].model,
-            thinking_mode=mapping.thinking_mode,
+            thinking_mode=(
+                mapping.thinking_mode
+                if self.config.profiles[profile_name].reasoning
+                else "off"
+            ),
             context_tokens=mapping.context_tokens,
         )
 
@@ -138,10 +142,10 @@ class ModelRouter:
         selection: ModelSelection = ModelSelection.PRIMARY,
         allow_fallback: bool = True,
     ) -> GenerationResponse:
-        prepared = self._prepare_role_request(request, role)
         errors: list[str] = []
         for name in self._role_profile_order(role, selection, allow_fallback):
             profile = self.config.profiles[name]
+            prepared = self._prepare_role_request(request, role, name)
             try:
                 return self._provider(profile.provider).generate(
                     profile.model, prepared
@@ -161,10 +165,10 @@ class ModelRouter:
         selection: ModelSelection = ModelSelection.PRIMARY,
         allow_fallback: bool = True,
     ) -> SchemaT:
-        prepared = self._prepare_role_request(request, role)
         errors: list[str] = []
         for name in self._role_profile_order(role, selection, allow_fallback):
             profile = self.config.profiles[name]
+            prepared = self._prepare_role_request(request, role, name)
             try:
                 return self._provider(profile.provider).structured_generate(
                     profile.model, prepared, schema
@@ -183,10 +187,10 @@ class ModelRouter:
         selection: ModelSelection = ModelSelection.PRIMARY,
         allow_fallback: bool = True,
     ) -> GenerationResponse:
-        prepared = self._prepare_role_request(request, role)
         errors: list[str] = []
         for name in self._role_profile_order(role, selection, allow_fallback):
             profile = self.config.profiles[name]
+            prepared = self._prepare_role_request(request, role, name)
             try:
                 return self._provider(profile.provider).tool_call(
                     profile.model, prepared
@@ -230,13 +234,19 @@ class ModelRouter:
         return list(dict.fromkeys(names))
 
     def _prepare_role_request(
-        self, request: GenerationRequest, role: ModelRole
+        self,
+        request: GenerationRequest,
+        role: ModelRole,
+        profile_name: str,
     ) -> GenerationRequest:
         mapping = self.config.roles[role]
         changes: dict[str, object] = {}
         if request.context_tokens is None:
             changes["context_tokens"] = mapping.context_tokens
-        if request.thinking is None and request.reasoning_effort is None:
+        if not self.config.profiles[profile_name].reasoning:
+            changes["thinking"] = False
+            changes["reasoning_effort"] = None
+        elif request.thinking is None and request.reasoning_effort is None:
             if mapping.thinking_mode == "off":
                 changes["thinking"] = False
             elif mapping.thinking_mode in {"low", "medium", "high"}:

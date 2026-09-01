@@ -46,19 +46,22 @@ class PyMuPDFAdapter(ToolAdapter):
         else:
             content = Path(source).read_bytes()
             document = pymupdf.open(source)
+        max_pages = int(request.arguments.get("max_pages", 100))
         pages = [
             {
                 "page": index + 1,
                 "text": page.get_text("text"),
             }
             for index, page in enumerate(document)
+            if index < max_pages
         ]
         document.close()
+        max_chars = int(request.arguments.get("max_chars", 50_000))
         ended = datetime.now(UTC)
         return AdapterResult(
             payload={
                 "source": source,
-                "content": "\n\n".join(page["text"] for page in pages),
+                "content": "\n\n".join(page["text"] for page in pages)[:max_chars],
                 "pages": pages,
                 "sections": [],
                 "tables": [],

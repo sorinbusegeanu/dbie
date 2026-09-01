@@ -314,6 +314,16 @@ def _live_executor(
     )
 
 
+def _restored_live_config(
+    configured: LiveMVPConfig,
+    state: PipelineState,
+) -> LiveMVPConfig:
+    stored = state.artifacts.get("live_mvp_config")
+    if stored is None:
+        return configured
+    return LiveMVPConfig.model_validate(stored)
+
+
 @app.command("live-run")
 def live_run(
     mandate: Annotated[str, typer.Option(help="Business discovery mandate")] = (
@@ -349,7 +359,11 @@ def live_run(
     checkpoints = JsonCheckpointStore(runtime.settings.run_directory)
     executor = _live_executor(runtime, stack, runner, selected)
     flow = IdeaPipelineFlow(
-        state=PipelineState(run_id=run_id, mandate=mandate),
+        state=PipelineState(
+            run_id=run_id,
+            mandate=mandate,
+            artifacts={"live_mvp_config": selected.model_dump(mode="json")},
+        ),
         executor=executor,
         checkpoint_store=checkpoints,
     )
@@ -392,10 +406,12 @@ def resume_live_run(
             _emit({"status": "PREFLIGHT_FAILED", "checks": checks})
             raise typer.Exit(code=1)
     checkpoints = JsonCheckpointStore(runtime.settings.run_directory)
-    flow = IdeaPipelineFlow.resume(
-        run_id,
+    restored_state = checkpoints.load(run_id)
+    restored_config = _restored_live_config(configured, restored_state)
+    flow = IdeaPipelineFlow(
+        state=restored_state,
         checkpoint_store=checkpoints,
-        executor=_live_executor(runtime, stack, runner, configured),
+        executor=_live_executor(runtime, stack, runner, restored_config),
     )
     RunRepository(runtime.database).set_status(run_id, RunStatus.RUNNING)
     flow.kickoff()

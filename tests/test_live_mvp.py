@@ -39,7 +39,12 @@ from dbie.persistence.vector import (
     DeterministicEmbeddingService,
     SemanticMemoryRepository,
 )
-from dbie.services.live_mvp import LiveMVPConfig, LiveMVPExecutor
+from dbie.services.live_mvp import (
+    _EVIDENCE_REQUIRED_TOOLS,
+    _FINALIZATION_REQUIRED_TOOLS,
+    LiveMVPConfig,
+    LiveMVPExecutor,
+)
 from dbie.tools.adapters.registry import AdapterRegistry
 from dbie.tools.audit import InMemoryAuditSink, ToolAuditRecord
 from dbie.tools.contracts import (
@@ -50,6 +55,23 @@ from dbie.tools.contracts import (
 )
 from dbie.tools.gateway import ToolGateway
 from dbie.tools.permissions import ToolPermissionPolicy
+
+
+def test_evidence_contract_requires_a_fetched_source_not_every_specialist_tool() -> None:
+    assert _EVIDENCE_REQUIRED_TOOLS == (
+        ToolName.DATABASE_QUERY,
+        ToolName.WEB_SEARCH,
+        ToolName.FETCH_PAGE,
+    )
+    assert ToolName.SEARCH_GITHUB not in _EVIDENCE_REQUIRED_TOOLS
+
+
+def test_finalization_contract_requires_context_tools_but_not_python() -> None:
+    assert _FINALIZATION_REQUIRED_TOOLS == (
+        ToolName.DATABASE_QUERY,
+        ToolName.SEMANTIC_MEMORY_SEARCH,
+    )
+    assert ToolName.PYTHON_EXECUTE not in _FINALIZATION_REQUIRED_TOOLS
 
 
 class ScriptedStageRunner:
@@ -326,6 +348,53 @@ def test_phase_eligibility_keeps_deterministic_gate_authoritative(
     assert result["agent_assessment"] is not None
 
 
+def test_live_eligibility_rejects_an_empty_surviving_portfolio(tmp_path: Path) -> None:
+    database = Database(f"sqlite:///{tmp_path / 'empty.sqlite3'}")
+    database.initialize()
+    audit = InMemoryAuditSink()
+    gateway = ToolGateway(
+        registry=AdapterRegistry(),
+        routes={},
+        permissions=ToolPermissionPolicy({}),
+        audit=audit,
+    )
+
+    class IneligibleStageRunner(ScriptedStageRunner):
+        def _output(self, run_id: str, request: Any) -> Any:
+            output = super()._output(run_id, request)
+            if isinstance(output, IdeaBatch):
+                output.ideas[0].digital_eligibility.payments = False
+            return output
+
+    executor = LiveMVPExecutor(
+        database,
+        tmp_path / "runs",
+        gateway,
+        IneligibleStageRunner(database, audit),
+        SemanticMemoryRepository(database, DeterministicEmbeddingService()),
+        config=LiveMVPConfig(
+            target_signals=1,
+            target_raw_ideas=1,
+            max_validation_candidates=1,
+        ),
+    )
+    state = PipelineState(run_id="empty-live-run", mandate="Find compliance SaaS")
+    for stage in (
+        StageName.INITIALIZE_RUN,
+        StageName.DISCOVER_SIGNALS,
+        StageName.GENERATE_IDEAS,
+    ):
+        changes = executor.execute(stage, state)
+        for field, value in changes.items():
+            if field == "artifacts":
+                state.artifacts.update(value)
+            else:
+                setattr(state, field, value)
+
+    with pytest.raises(ValueError, match="no candidates"):
+        executor.execute(StageName.ELIGIBILITY_GATE, state)
+
+
 def test_phase_assumptions_creates_complete_atomic_map(live_stage_results) -> None:
     snapshots, _ = live_stage_results
     assert (
@@ -372,6 +441,38 @@ def test_phase_ranking_records_readable_portfolio_position(live_stage_results) -
     ranking = snapshots[StageName.RANK_PORTFOLIO].artifacts["rankings"][0]
     assert ranking["rank"] == 1
     assert ranking["stability"] == 1
+
+
+def test_empty_finalist_portfolio_skips_a_meaningless_judge_call(tmp_path: Path) -> None:
+    database = Database(f"sqlite:///{tmp_path / 'empty-ranking.sqlite3'}")
+    database.initialize()
+    audit = InMemoryAuditSink()
+    gateway = ToolGateway(
+        registry=AdapterRegistry(),
+        routes={},
+        permissions=ToolPermissionPolicy({}),
+        audit=audit,
+    )
+
+    class UnexpectedRunner:
+        def run_tasks(self, run_id: str, requests: list[Any]) -> dict[str, Any]:
+            raise AssertionError("an empty portfolio must not invoke a judge")
+
+    executor = LiveMVPExecutor(
+        database,
+        tmp_path / "runs",
+        gateway,
+        UnexpectedRunner(),
+        SemanticMemoryRepository(database, DeterministicEmbeddingService()),
+    )
+    result = executor.execute(
+        StageName.RANK_PORTFOLIO,
+        PipelineState(run_id="empty-ranking", mandate="test"),
+    )
+
+    assert result["artifacts"]["matches"] == []
+    assert result["artifacts"]["rankings"] == []
+    assert "No candidates" in result["artifacts"]["portfolio_observations"][0]
 
 
 def test_phase_experiment_design_records_safe_preregistration_boundary(

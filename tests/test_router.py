@@ -50,14 +50,14 @@ class FakeProvider(LLMProvider):
         return UsageSnapshot()
 
 
-def profile(model: str, family: str) -> ModelProfile:
+def profile(model: str, family: str, *, reasoning: bool = True) -> ModelProfile:
     return ModelProfile(
         provider="ollama",
         model=model,
         family=family,
         maximum_context_tokens=64000,
         request_context_tokens=16384,
-        reasoning=True,
+        reasoning=reasoning,
         tools=True,
         structured_output=True,
     )
@@ -114,6 +114,40 @@ def test_role_router_applies_context_thinking_and_role_fallback() -> None:
     assert response.model == "ministral-3:14b-64k"
     assert provider.requests[0].context_tokens == 8192
     assert provider.requests[0].thinking is False
+
+
+def test_role_fallback_disables_reasoning_for_a_nonreasoning_profile() -> None:
+    config = ModelsConfig(
+        active_provider="ollama",
+        default_profile="gpt",
+        providers={"ollama": OllamaSettings()},
+        profiles={
+            "gpt": profile("gpt-oss:20b-64k", "gpt-oss"),
+            "ministral": profile(
+                "ministral-3:14b-64k", "ministral-3", reasoning=False
+            ),
+        },
+        roles={
+            ModelRole.JUDGE: ModelRoleConfig(
+                primary_profile="gpt",
+                fallback_profiles=["ministral"],
+                context_tokens=8192,
+                thinking_mode="high",
+            )
+        },
+    )
+    provider = FakeProvider()
+    router = ModelRouter(config, {"ollama": provider})
+
+    response = router.generate_for_role(
+        GenerationRequest(messages=[ChatMessage(role="user", content="judge")]),
+        role=ModelRole.JUDGE,
+    )
+
+    assert response.model == "ministral-3:14b-64k"
+    assert provider.requests[0].reasoning_effort == "high"
+    assert provider.requests[1].reasoning_effort is None
+    assert provider.requests[1].thinking is False
 
 
 def test_challenger_selection_is_stable_for_same_task() -> None:

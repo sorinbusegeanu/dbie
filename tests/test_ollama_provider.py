@@ -71,7 +71,7 @@ def test_generate_uses_conservative_profile_context() -> None:
     response = provider.generate("gpt-oss:20b-64k", request())
 
     assert response.content == "result"
-    assert seen["options"] == {"num_ctx": 16384}
+    assert seen["options"] == {"num_ctx": 16384, "num_predict": 8192}
     assert provider.usage().completion_tokens == 4
 
 

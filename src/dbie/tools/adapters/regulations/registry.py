@@ -40,7 +40,11 @@ class RegulatoryAdapterRegistry(ToolAdapter):
             if adapter is None:
                 warnings.append(f"NO_OFFICIAL_ADAPTER:{jurisdiction}")
                 continue
-            result = adapter.execute(request)
+            try:
+                result = adapter.execute(request)
+            except Exception:  # noqa: BLE001 - isolate jurisdiction providers
+                warnings.append(f"OFFICIAL_ADAPTER_FAILED:{jurisdiction}")
+                continue
             documents.extend(result.payload.get("documents", []))
             sources.extend(result.raw_sources)
             warnings.extend(result.warnings)

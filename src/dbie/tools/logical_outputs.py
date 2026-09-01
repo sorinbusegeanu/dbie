@@ -48,6 +48,8 @@ class RegulationsOutput(ToolOutput):
 
 
 class DocumentOutput(ToolOutput):
+    model_config = ConfigDict(extra="ignore")
+
     source: str
     content: str
     file_hash: str

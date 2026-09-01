@@ -93,6 +93,18 @@ from dbie.tools.gateway import ToolGateway
 from dbie.tools.normalization.web import canonicalize_url
 
 
+_EVIDENCE_REQUIRED_TOOLS = (
+    ToolName.DATABASE_QUERY,
+    ToolName.WEB_SEARCH,
+    ToolName.FETCH_PAGE,
+)
+
+_FINALIZATION_REQUIRED_TOOLS = (
+    ToolName.DATABASE_QUERY,
+    ToolName.SEMANTIC_MEMORY_SEARCH,
+)
+
+
 class LiveMVPConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -163,16 +175,17 @@ class LiveMVPExecutor:
             crew_name="Run Planning Crew",
             spec=spec,
             description=(
-                f"Interpret this DBIE mandate: {state.mandate!r}. Use database_query "
-                "to confirm the new run state and semantic_memory_search to identify "
-                "related prior learning. Define the central research questions and "
-                "explicitly exclude physical, labor-linear, and consequential external "
-                "actions from this MVP run."
+                f"Interpret this DBIE mandate: {state.mandate!r}. Use "
+                "semantic_memory_search to identify related prior learning. The run "
+                "record has already been created and verified deterministically; do not "
+                "query unrelated database entities to confirm it. Define the central "
+                "research questions and explicitly exclude physical, labor-linear, and "
+                "consequential external actions from this MVP run."
             ),
             expected_output="A typed RunPlan with research questions and exclusions.",
             output_model=RunPlan,
             dependency_barrier=0,
-            required_tools=spec.tools,
+            required_tools=(ToolName.SEMANTIC_MEMORY_SEARCH,),
         )
         plan = RunPlan.model_validate(
             self.task_runner.run_tasks(state.run_id, [request])[request.task_id]
@@ -206,7 +219,9 @@ class LiveMVPExecutor:
                 expected_output="A typed DiscoveryBatch with grounded signal records.",
                 output_model=DiscoveryBatch,
                 dependency_barrier=1,
-                required_tools=spec.tools,
+                required_tools=(ToolName.SEARCH_REGULATIONS,)
+                if spec.role == "Regulatory Scout"
+                else spec.tools,
             )
             for index, spec in enumerate(DISCOVERY_SPECS)
         ]
@@ -276,13 +291,20 @@ class LiveMVPExecutor:
                     f"Then generate at least {per_agent} materially distinct business "
                     f"ideas through the {spec.role} lens for mandate {state.mandate!r}. "
                     "Every idea must cite one or more supplied signal titles and provide "
-                    "all digital-only and autonomous-scalability fields. Do not validate "
-                    "the ideas. Signals:\n" + signal_context
+                    "all digital-only and autonomous-scalability fields. For the hard "
+                    "eligibility schema, every digital_eligibility field must describe "
+                    "whether that function is fully digital: set payments=true when "
+                    "payments are digitally fulfilled (it does not mean the product moves "
+                    "money), and do not propose an idea if any dimension cannot be fully "
+                    "digital. human_minutes_per_customer_at_10x must be strictly lower "
+                    "than human_minutes_per_customer and must reflect improving marginal "
+                    "human burden at scale. Do not validate the ideas. Signals:\n"
+                    + signal_context
                 ),
                 expected_output="A typed IdeaBatch containing distinct complete ideas.",
                 output_model=IdeaBatch,
                 dependency_barrier=2,
-                required_tools=spec.tools,
+                required_tools=(ToolName.SEMANTIC_MEMORY_SEARCH,),
             )
             for index, spec in enumerate(IDEATION_SPECS)
         ]
@@ -382,6 +404,11 @@ class LiveMVPExecutor:
             if result.eligible:
                 eligible.append(idea.id)
         selected = eligible[: self.config.max_validation_candidates]
+        if not selected:
+            raise ValueError(
+                "live eligibility produced no candidates that passed the deterministic "
+                "digital-only and autonomous-scalability gates"
+            )
         return {
             "eligible_candidate_ids": selected,
             "artifacts": {
@@ -499,7 +526,7 @@ class LiveMVPExecutor:
                     expected_output="A typed EvidenceBatch containing only tool-grounded claims.",
                     output_model=EvidenceBatch,
                     dependency_barrier=5,
-                    required_tools=spec.tools,
+                    required_tools=_EVIDENCE_REQUIRED_TOOLS,
                 )
             )
         outputs = self.task_runner.run_tasks(state.run_id, requests)
@@ -570,14 +597,15 @@ class LiveMVPExecutor:
             crew_name="Evidence Validation Crew",
             spec=spec,
             description=(
-                "Use database_query LIST_ASSUMPTIONS/LIST_EVIDENCE and "
-                "semantic_memory_search. Independently reconcile the canonical evidence "
-                "for every assumption. Recommend a status and identify contradictions, "
-                "but never count model agreement as evidence. The deterministic decision "
-                "service will enforce evidence tiers and independent lineages. Assumptions:\n"
-                + json.dumps([item.model_dump(mode="json") for item in assumptions])
-                + "\nEvidence by assumption:\n"
-                + json.dumps(evidence_by_assumption)
+                "First call database_query with LIST_ASSUMPTIONS, then call it with "
+                "LIST_EVIDENCE, and call semantic_memory_search for related prior "
+                "learning. Use those tool results as the only research context. "
+                "Independently reconcile every returned assumption for the supplied "
+                "candidate IDs. Recommend a status and identify contradictions, but "
+                "never count model agreement as evidence. The deterministic decision "
+                "service will enforce evidence tiers and independent lineages. "
+                "Candidate IDs:\n"
+                + json.dumps(state.eligible_candidate_ids)
             ),
             expected_output="A typed ValidationBatch with advisory recommendations.",
             output_model=ValidationBatch,
@@ -612,21 +640,21 @@ class LiveMVPExecutor:
 
     def _model_business(self, state: PipelineState) -> dict[str, Any]:
         spec = _spec("Opportunity Synthesizer", SYNTHESIS_SPECS)
-        candidates = self._normalized_candidate_context(
-            state.eligible_candidate_ids
-        )
         request = CrewTaskRequest(
             task_id="business-model-comparison",
             stage_id=StageName.MODEL_BUSINESS.value,
             crew_name="Digital Business Model Crew",
             spec=spec,
             description=(
-                "Use database_query and semantic_memory_search. For every supplied "
-                "candidate, formulate at least one concrete fully digital business "
-                "model. Keep buyer, pricing, acquisition, delivery, costs, and the "
-                "assumptions unique to that model explicit. Do not convert estimates "
-                "into evidence and do not merge materially different models. Candidates:\n"
-                + json.dumps(candidates)
+                "First call database_query with LIST_IDEAS, LIST_ASSUMPTIONS, and "
+                "LIST_EVIDENCE, then call semantic_memory_search for related prior "
+                "learning. Use those tool results as the only research context. For "
+                "every supplied candidate ID, formulate at least one concrete fully "
+                "digital business model. Keep buyer, pricing, acquisition, delivery, "
+                "costs, and the assumptions unique to that model explicit. Do not "
+                "convert estimates into evidence and do not merge materially different "
+                "models. Candidate IDs:\n"
+                + json.dumps(state.eligible_candidate_ids)
             ),
             expected_output=(
                 "A typed BusinessModelBatch with one or more distinct models per candidate."
@@ -655,7 +683,6 @@ class LiveMVPExecutor:
         }
 
     def _red_team(self, state: PipelineState) -> dict[str, Any]:
-        dossiers = self._normalized_candidate_context(state.eligible_candidate_ids)
         requests = [
             CrewTaskRequest(
                 task_id=f"red-team-{index}-{_slug(spec.role)}",
@@ -664,11 +691,14 @@ class LiveMVPExecutor:
                 spec=spec,
                 description=(
                     f"Act as {spec.role}. This is an explicit L3 heterogeneous local "
-                    "review. Use database_query and semantic_memory_search, then use live "
-                    "external tools when a factual attack requires new support. Attack "
-                    "the normalized candidates without relying on generator persuasion. "
-                    "Return exact source URLs from tool results and mark each attack "
-                    "resolved or unresolved. Candidates:\n" + json.dumps(dossiers)
+                    "review. First call database_query with LIST_IDEAS, "
+                    "LIST_ASSUMPTIONS, and LIST_EVIDENCE, then call "
+                    "semantic_memory_search for related prior learning. Use live external "
+                    "tools when a factual attack requires new support. Attack the "
+                    "candidate IDs without relying on generator persuasion. Return exact "
+                    "source URLs from tool results and mark each attack resolved or "
+                    "unresolved. Candidate IDs:\n"
+                    + json.dumps(state.eligible_candidate_ids)
                 ),
                 expected_output="A typed RedTeamBatch with candidate-specific attacks.",
                 output_model=RedTeamBatch,
@@ -761,6 +791,16 @@ class LiveMVPExecutor:
         }
 
     def _rank_portfolio(self, state: PipelineState) -> dict[str, Any]:
+        if not state.finalist_ids:
+            return {
+                "artifacts": {
+                    "matches": [],
+                    "rankings": [],
+                    "portfolio_observations": [
+                        "No candidates passed deterministic validation and red-team gates."
+                    ],
+                }
+            }
         judge = ActorSpec(
             role="Portfolio Judge",
             group="portfolio",
@@ -1022,14 +1062,17 @@ class LiveMVPExecutor:
             crew_name="Diligence and Dossier Crew",
             spec=spec,
             description=(
-                "Use database_query and semantic_memory_search. Produce one grounded "
-                "business dossier narrative for every supplied candidate, including a "
-                "description of at least 100 words, named competitors, plausible digital "
-                "business models, explicit unknowns, and cheap falsifying experiments. "
-                "Provide monthly price and variable cost estimates only when supportable; "
-                "they will be calculated deterministically outside the model. Never call "
-                "model agreement evidence. Candidates:\n"
-                + json.dumps(self._normalized_candidate_context(candidate_ids))
+                "First call database_query with LIST_IDEAS, LIST_ASSUMPTIONS, and "
+                "LIST_EVIDENCE, then call semantic_memory_search for related prior "
+                "learning. Use those tool results as the only research context. Produce "
+                "one grounded business dossier narrative for every supplied candidate "
+                "ID. Each description must contain at least 150 words. Include named "
+                "competitors, plausible digital business models, explicit unknowns, and "
+                "cheap falsifying experiments. Provide monthly price and variable cost "
+                "estimates only when supportable; they will be calculated "
+                "deterministically outside the model. Never call model agreement "
+                "evidence. Candidate IDs:\n"
+                + json.dumps(candidate_ids)
             ),
             expected_output="A typed DossierBatch with one substantial narrative per candidate.",
             output_model=DossierBatch,
@@ -1148,7 +1191,7 @@ class LiveMVPExecutor:
             expected_output="A typed RunConclusion with concrete next actions.",
             output_model=RunConclusion,
             dependency_barrier=13,
-            required_tools=spec.tools,
+            required_tools=_FINALIZATION_REQUIRED_TOOLS,
         )
         conclusion = RunConclusion.model_validate(
             self.task_runner.run_tasks(state.run_id, [request])[request.task_id]

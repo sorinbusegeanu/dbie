@@ -24,6 +24,7 @@ from dbie.tools.adapters.praw_reddit import PrawRedditAdapter
 from dbie.tools.adapters.pygithub import PyGithubAdapter
 from dbie.tools.adapters.pymupdf import PyMuPDFAdapter
 from dbie.tools.adapters.regulations.eurlex import EurLexAdapter
+from dbie.tools.adapters.regulations.registry import RegulatoryAdapterRegistry
 from dbie.tools.adapters.searxng import SearXNGAdapter
 from dbie.tools.adapters.sqlalchemy_db import SQLAlchemyDatabaseAdapter
 from dbie.tools.adapters.trafilatura import TrafilaturaAdapter
@@ -433,6 +434,43 @@ def test_eurlex_returns_only_normalized_official_records() -> None:
     assert document["official_source"] is True
 
 
+def test_regulatory_registry_isolates_one_jurisdiction_failure() -> None:
+    class FixtureRegulator(ToolAdapter):
+        capabilities = AdapterCapabilities(operations={"search_regulations"})
+
+        def __init__(self, jurisdiction: str, *, fail: bool = False) -> None:
+            self.jurisdiction = jurisdiction
+            self.name = f"fixture-{jurisdiction.lower()}"
+            self.fail = fail
+
+        def health(self) -> AdapterHealth:
+            return AdapterHealth(name=self.name, available=True)
+
+        def execute(self, request: AdapterRequest) -> AdapterResult:
+            if self.fail:
+                raise RuntimeError("provider detail")
+            return AdapterResult(
+                payload={
+                    "documents": [{"jurisdiction": self.jurisdiction}],
+                    "legal_advice": False,
+                }
+            )
+
+    registry = RegulatoryAdapterRegistry(
+        [FixtureRegulator("US"), FixtureRegulator("EU", fail=True)]
+    )
+
+    result = registry.execute(
+        adapter_request(
+            "search_regulations",
+            {"query": "compliance", "jurisdictions": ["US", "EU"]},
+        )
+    )
+
+    assert result.payload["documents"] == [{"jurisdiction": "US"}]
+    assert result.warnings == ["OFFICIAL_ADAPTER_FAILED:EU"]
+
+
 def test_docker_command_fails_closed_without_mounts_or_network() -> None:
     seen: dict[str, object] = {}
 
@@ -508,6 +546,29 @@ def test_docling_contract_has_structured_content_hash() -> None:
         adapter_request("read_document", {"source": "fixture.docx"})
     )
     assert len(result.payload["file_hash"]) == 64
+
+
+def test_docling_limits_content_returned_to_the_model() -> None:
+    document = SimpleNamespace(
+        export_to_markdown=lambda: "x" * 2_000,
+        export_to_dict=lambda: {
+            "pages": {"1": {"large": "y" * 2_000}},
+            "texts": [],
+            "tables": [],
+        },
+    )
+    converter = SimpleNamespace(
+        convert=lambda source: SimpleNamespace(document=document)
+    )
+
+    result = DoclingAdapter(converter).execute(
+        adapter_request(
+            "read_document",
+            {"source": "fixture.docx", "max_chars": 1_000},
+        )
+    )
+
+    assert len(result.payload["content"]) == 1_000
 
 
 def test_pymupdf_reads_page_addressable_pdf(tmp_path) -> None:

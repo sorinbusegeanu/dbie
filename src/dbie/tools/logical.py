@@ -95,6 +95,7 @@ class ReadDocumentInput(ToolInput):
     tables: bool = True
     require_structure: bool = True
     max_pages: int = Field(default=100, ge=1, le=1000)
+    max_chars: int = Field(default=50_000, ge=1_000, le=200_000)
 
 
 class PythonExecuteInput(ToolInput):

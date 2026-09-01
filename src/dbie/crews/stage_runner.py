@@ -238,6 +238,7 @@ class CrewAIStageRunner:
             if record.envelope.task_id == request.task_id
             and record.allowed
             and record.result is not None
+            and record.result.error_category is None
         }
         missing = set(request.required_tools) - called
         if missing:

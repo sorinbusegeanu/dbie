@@ -1,5 +1,22 @@
 # Digital Business Idea Engine
 
+## At a glance
+
+**Type:** Local-first multi-agent AI application  
+**Stack:** Python, CrewAI, Ollama, PostgreSQL/pgvector, FastEmbed, Docker, configurable research tools
+
+**Purpose:** Discover, assess and compare digital business opportunities using evidence collected from external sources.
+
+- **Agent workflow:** Specialised discovery, ideation, validation, synthesis, red-team and evaluation roles coordinated through a resumable 14-stage CrewAI Flow.
+- **Model orchestration:** Role-based routing for local models, with scheduled phases, checkpoint barriers and recorded performance metrics.
+- **Tools and evidence:** Permissioned research and document tools, provenance-aware evidence, semantic retrieval and deterministic evaluation gates.
+- **Outputs:** Ranked opportunities, decision dossiers (Markdown/JSON), persisted records and a local read-only dashboard.
+- **Implementation status:** MVP code, acceptance and test workflows are present; real live runs depend on the configured local models, database and optional external services.
+
+**Inspect the code:** [Flow](src/dbie/flows/idea_pipeline.py) · [Agents](src/dbie/crews/catalog.py) · [Model scheduling](src/dbie/models/phase_scheduler.py) · [Tool gateway](src/dbie/tools/gateway.py) · [Tests](tests/).
+
+
+
 DBIE is a local-first, evidence-driven engine for discovering and evaluating
 fully digital, autonomously scalable business opportunities.
 

@@ -62,6 +62,103 @@ Omitting the four bounded-target options runs the complete strict
 `acceptance-run` remains the fast offline regression path for deterministic
 domain gates and dashboard artifacts.
 
+## Model settings, skills, and persistent opportunity memory
+
+`config/models.yaml` keeps model role routing and reasoning settings separate
+from task sampling. `task_temperatures` maps `TaskClass` values to the effective
+Ollama temperature: ideation 0.8, opportunity synthesis 0.4, research planning
+0.3, evidence and assumption work 0.1, financial analysis and investment
+decisions 0.0, red-team review 0.2, and experiment design 0.2. The resolved
+temperature is carried in each generation request and recorded in model
+performance payloads. A temperature explicitly set on `RouterLLM` takes
+precedence, including across role fallback. Reasoning is independently governed
+by profile `reasoning` and role `thinking_mode`; changing temperature does not
+enable or disable reasoning.
+
+Discovery web research uses analytical task classes. The eight creative idea
+lenses use `discovery_ideation`, while business-model comparison uses the
+`financial_analysis` class at temperature 0.0; numerical projections are
+calculated by deterministic code. The existing 14-stage resumable CrewAI
+flow and actor tool permissions are unchanged.
+
+Seven concise, versioned Markdown procedures live in `src/dbie/skills/`. The task runner
+maps the current task class to applicable skill files, loads their contents,
+and injects them into the CrewAI task description. Skill identifiers and
+versions are stored with model execution metrics. Prior opportunity and lesson
+hits are retrieved through DBIE's permissioned semantic-memory tool and added
+as a separate historical context; they are labeled as history, never evidence.
+An unavailable or low-similarity search adds no memory context.
+
+Candidate JSON records in `business_ideas` are the durable opportunity history.
+The runner retrieves semantically relevant history before each task, shows prior
+candidate decisions during ideation, then compares problem, customer, value, and
+solution dimensions before persistence. Exact thesis repeats and semantic
+duplicates are rejected or linked; related products can proceed. Duplicate and
+reconsideration outcomes are included in run artifacts and domain events. A
+rejected opportunity is reconsidered only when the draft gives an explicit
+reconsideration rationale and cites at least one newly observed signal source
+identifier. Dimension similarity is a deterministic lexical/synonym heuristic,
+so human review is still appropriate for borderline matches. The threshold and
+retrieval controls are in `config/policies.yaml` under `opportunity_memory`.
+
+`business_lessons` stores versioned structured lessons with original task and
+opportunity IDs, expected and observed results, evidence references, root-cause
+status, confidence, applicability, and timestamps. Evidence-backed contradicted
+assumptions, eligibility or investment rejections, supported red-team findings,
+failed experiments, and large forecast errors can create lessons. Unsupported
+failure explanations remain hypotheses. Lessons are indexed for semantic
+retrieval; the current task receives relevant hits separately from static skill
+instructions. Repeated indexing and lesson creation are idempotent by entity or
+run/opportunity/category/task.
+
+Semantic memory uses PostgreSQL/pgvector for configured PostgreSQL deployments
+and the persistent SQL/JSON embedding fallback for SQLite. Search supports
+entity-type filters, run filters, a minimum-similarity cutoff, ranked limits,
+equivalent-result deduplication, and source record identifiers. `LESSON` and
+`IDEA` hits are prior learning only, not commercial evidence.
+
+Initialize storage (including the additive `business_lessons` table) with:
+
+```bash
+uv run dbie init
+uv run dbie live-run --no-strict-targets --signals 20 --ideas 12 --candidates 3
+uv run dbie resume-run <run-id>
+uv run pytest
+```
+
+DBIE initializes tables with SQLAlchemy `metadata.create_all`; this repository
+does not currently use Alembic revision files. New JSON-payload fields have
+defaults so earlier candidate records remain loadable. Keep backups before
+changing production schemas. For memory inspection, use the dashboard's run
+artifacts and the permissioned `semantic_memory_search` tool; model-performance
+records expose effective temperatures and skill versions.
+
+For example, the default policy is expressed directly in task-class values:
+
+```yaml
+task_temperatures:
+  discovery_ideation: 0.8
+  opportunity_synthesis: 0.4
+  research_planning: 0.3
+  financial_analysis: 0.0
+  investment_decision: 0.0
+```
+
+The related `config/policies.yaml` controls history matching and retrieval:
+
+```yaml
+opportunity_memory:
+  duplicate_similarity_threshold: 0.55
+  minimum_retrieval_similarity: 0.15
+  retrieval_limit: 5
+```
+
+These values are independent of each role's `thinking_mode`. The opportunity
+skills map to the existing discovery/ideation, validation, competitive,
+business-model, evidence-reconciliation, red-team, and portfolio actors; no new
+agent roles or tool permissions are introduced. To inspect persisted run
+artifacts locally, use `uv run dbie dashboard` and the read-only run workspace.
+
 ## Commercial decision quality (offline)
 
 DBIE has deterministic commercial economics, commercial evidence grades, a

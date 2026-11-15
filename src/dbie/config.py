@@ -13,6 +13,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from dbie.exceptions import ConfigurationError
 from dbie.domain.decisions import ReadinessPolicy
 from dbie.models.roles import ModelRole
+from dbie.models.task_roles import TaskClass
 
 
 class OllamaSettings(BaseModel):
@@ -55,6 +56,7 @@ class ModelsConfig(BaseModel):
     providers: dict[str, OllamaSettings]
     profiles: dict[str, ModelProfile]
     roles: dict[ModelRole, ModelRoleConfig] = Field(default_factory=dict)
+    task_temperatures: dict[TaskClass, float] = Field(default_factory=dict)
 
     def model_post_init(self, __context: Any, /) -> None:
         names = [self.default_profile, *self.fallback_profiles]
@@ -84,6 +86,8 @@ class ModelsConfig(BaseModel):
                 raise ValueError(
                     f"role {role.value} context exceeds its primary profile maximum"
                 )
+        if any(not 0 <= value <= 2 for value in self.task_temperatures.values()):
+            raise ValueError("task temperatures must be between 0 and 2")
 
 
 class WebViewerSettings(BaseModel):
@@ -163,3 +167,20 @@ def load_readiness_policy(settings: Settings) -> ReadinessPolicy:
         return ReadinessPolicy.model_validate(readiness)
     except ValueError as exc:
         raise ConfigurationError(f"invalid decision_readiness policy: {exc}") from exc
+
+
+def load_opportunity_memory_policy(settings: Settings) -> dict[str, Any]:
+    data = _yaml_mapping(settings.policies_config)
+    policy = data.get("opportunity_memory", {})
+    if not isinstance(policy, dict):
+        raise ConfigurationError("opportunity_memory policy must be a mapping")
+    threshold = float(policy.get("duplicate_similarity_threshold", 0.55))
+    retrieval_similarity = float(policy.get("minimum_retrieval_similarity", 0.15))
+    retrieval_limit = int(policy.get("retrieval_limit", 5))
+    if not 0.1 <= threshold <= 1 or not -1 <= retrieval_similarity <= 1 or not 1 <= retrieval_limit <= 100:
+        raise ConfigurationError("invalid opportunity_memory threshold or result limit")
+    return {
+        "duplicate_similarity_threshold": threshold,
+        "minimum_retrieval_similarity": retrieval_similarity,
+        "retrieval_limit": retrieval_limit,
+    }

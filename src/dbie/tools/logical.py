@@ -146,6 +146,7 @@ class SemanticMemorySearchInput(ToolInput):
     ]
     filters: dict[str, Any] = Field(default_factory=dict)
     top_k: int = Field(default=10, ge=1, le=100)
+    min_similarity: float = Field(default=0.05, ge=-1, le=1)
     exclude_current_run: bool = False
     exclude_run_id: str | None = None
 

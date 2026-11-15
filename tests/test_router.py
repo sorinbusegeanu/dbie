@@ -140,7 +140,9 @@ def test_role_fallback_disables_reasoning_for_a_nonreasoning_profile() -> None:
     router = ModelRouter(config, {"ollama": provider})
 
     response = router.generate_for_role(
-        GenerationRequest(messages=[ChatMessage(role="user", content="judge")]),
+        GenerationRequest(
+            messages=[ChatMessage(role="user", content="judge")], temperature=0.8
+        ),
         role=ModelRole.JUDGE,
     )
 
@@ -148,6 +150,7 @@ def test_role_fallback_disables_reasoning_for_a_nonreasoning_profile() -> None:
     assert provider.requests[0].reasoning_effort == "high"
     assert provider.requests[1].reasoning_effort is None
     assert provider.requests[1].thinking is False
+    assert [item.temperature for item in provider.requests] == [0.8, 0.8]
 
 
 def test_challenger_selection_is_stable_for_same_task() -> None:

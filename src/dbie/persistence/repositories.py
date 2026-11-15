@@ -7,7 +7,7 @@ from uuid import uuid4
 
 from sqlalchemy import insert, select, update
 
-from dbie.domain.enums import CandidateState, RunStatus
+from dbie.domain.enums import CandidateState, DecisionType, RunStatus
 from dbie.domain.models import (
     Assumption,
     BusinessIdea,
@@ -19,10 +19,12 @@ from dbie.domain.models import (
     PairwiseMatch,
     Run,
 )
+from dbie.domain.memory import BusinessLesson
 from dbie.exceptions import PersistenceError
 from dbie.persistence.db import Database
 from dbie.persistence.schema import (
     assumptions,
+    business_lessons,
     evaluations,
     events,
     evidence,
@@ -192,6 +194,11 @@ class CandidateRepository:
             ).scalars()
             return [BusinessIdea.model_validate(row) for row in rows]
 
+    def all(self) -> list[BusinessIdea]:
+        with self.database.engine.connect() as connection:
+            rows = connection.execute(select(ideas.c.payload).order_by(ideas.c.created_at)).scalars()
+            return [BusinessIdea.model_validate(row) for row in rows]
+
     def set_state(self, idea_id: str, state: CandidateState) -> BusinessIdea:
         idea = self.get(idea_id)
         idea.lifecycle_state = state
@@ -212,6 +219,68 @@ class CandidateRepository:
                 connection=connection,
             )
         return idea
+
+    def set_decision(
+        self, idea_id: str, reason_codes: list[str], reconsideration_conditions: list[str],
+        decision: DecisionType | None = None,
+    ) -> BusinessIdea:
+        idea = self.get(idea_id)
+        idea.decision_reason_codes = list(reason_codes)
+        if decision is not None:
+            idea.final_decision = decision
+        idea.last_evaluated_at = _now()
+        idea.reconsideration_conditions = list(reconsideration_conditions)
+        with self.database.engine.begin() as connection:
+            result = connection.execute(update(ideas).where(ideas.c.id == idea_id).values(
+                updated_at=_now(), payload=_payload(idea)
+            ))
+            if result.rowcount != 1:
+                raise PersistenceError(f"idea not found during decision update: {idea_id}")
+            self.events.append(
+                run_id=idea.run_id, entity_type="BusinessIdea", entity_id=idea.id,
+                event_type="INVESTMENT_DECISION_RECORDED",
+                payload={"lifecycle": idea.lifecycle_state.value, "decision": idea.final_decision.value if idea.final_decision else None, "reason_codes": reason_codes,
+                         "reconsideration_conditions": reconsideration_conditions},
+                connection=connection,
+            )
+        return idea
+
+
+class BusinessLessonRepository:
+    def __init__(self, database: Database) -> None:
+        self.database = database
+
+    def create(self, lesson: BusinessLesson) -> BusinessLesson:
+        with self.database.engine.begin() as connection:
+            existing = connection.execute(select(business_lessons.c.payload).where(
+                business_lessons.c.run_id == lesson.run_id,
+                business_lessons.c.idea_id == lesson.opportunity_id,
+                business_lessons.c.category == lesson.category,
+                business_lessons.c.payload["task_id"].as_string() == lesson.task_id,
+            )).scalar_one_or_none()
+            if existing is not None:
+                return BusinessLesson.model_validate(existing)
+            connection.execute(insert(business_lessons).values(
+                id=lesson.id, run_id=lesson.run_id, idea_id=lesson.opportunity_id,
+                category=lesson.category, validation_status=lesson.validation_status,
+                created_at=lesson.created_at, updated_at=lesson.revised_at,
+                payload=_payload(lesson),
+            ))
+        return lesson
+
+    def for_opportunity(self, opportunity_id: str) -> list[BusinessLesson]:
+        with self.database.engine.connect() as connection:
+            rows = connection.execute(select(business_lessons.c.payload).where(
+                business_lessons.c.idea_id == opportunity_id
+            ).order_by(business_lessons.c.created_at)).scalars()
+            return [BusinessLesson.model_validate(row) for row in rows]
+
+    def all(self, *, validated_only: bool = False) -> list[BusinessLesson]:
+        statement = select(business_lessons.c.payload).order_by(business_lessons.c.created_at)
+        if validated_only:
+            statement = statement.where(business_lessons.c.validation_status == "VALIDATED")
+        with self.database.engine.connect() as connection:
+            return [BusinessLesson.model_validate(row) for row in connection.execute(statement).scalars()]
 
 
 class AssumptionRepository:

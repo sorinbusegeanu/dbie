@@ -14,7 +14,7 @@ from pydantic import BaseModel
 from sqlalchemy.exc import SQLAlchemyError
 
 from dbie.bootstrap import build_runtime
-from dbie.config import load_readiness_policy, load_settings, load_tools_config
+from dbie.config import load_opportunity_memory_policy, load_readiness_policy, load_settings, load_tools_config
 from dbie.crews.catalog import CrewCatalog
 from dbie.crews.stage_runner import CrewAIStageRunner
 from dbie.domain.enums import RunStatus
@@ -245,7 +245,10 @@ def _live_stack(runtime: Any) -> tuple[OSSLocalStack, CrewAIStageRunner, LiveMVP
         tools_config=tools_config,
         audit=audit,
     )
-    catalog = CrewCatalog(stack.gateway, runtime.crew_llm)
+    catalog = CrewCatalog(
+        stack.gateway, runtime.crew_llm,
+        memory_search_policy=load_opportunity_memory_policy(runtime.settings),
+    )
     runner = CrewAIStageRunner(
         catalog,
         runtime.settings.run_directory,
@@ -307,6 +310,12 @@ def _live_executor(
     runner: CrewAIStageRunner,
     mvp_config: LiveMVPConfig,
 ) -> LiveMVPExecutor:
+    memory_policy = load_opportunity_memory_policy(runtime.settings)
+    mvp_config = mvp_config.model_copy(update={
+        "duplicate_similarity_threshold": memory_policy["duplicate_similarity_threshold"],
+        "minimum_memory_similarity": memory_policy["minimum_retrieval_similarity"],
+        "memory_retrieval_limit": memory_policy["retrieval_limit"],
+    })
     fingerprint = sha256(
         (
             runtime.models_config.model_dump_json()

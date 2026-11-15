@@ -14,8 +14,9 @@ from dbie.crews.catalog import (
     ActorSpec,
     CrewCatalog,
     actor_id_for,
-    task_class_for_actor,
+    task_class_for_request,
 )
+from dbie.crews.skills import skills_for_task
 from dbie.crews.conversation_capture import CrewAIConversationCapture
 from dbie.models.performance import ModelPerformanceSink
 from dbie.models.phase_scheduler import (
@@ -26,7 +27,7 @@ from dbie.models.phase_scheduler import (
 from dbie.models.roles import ModelRole, ModelSelection
 from dbie.services.run_workspace import RunWorkspaceManager
 from dbie.tools.crewai_tools import CrewAIToolContext
-from dbie.tools.contracts import ToolName
+from dbie.tools.contracts import ToolBudget, ToolCallEnvelope, ToolName
 
 
 @dataclass(frozen=True)
@@ -83,7 +84,7 @@ class CrewAIStageRunner:
                 ModelPhaseTask(
                     task_id=request.task_id,
                     run_id=run_id,
-                    task_class=task_class_for_actor(request.spec),
+                    task_class=task_class_for_request(request),
                     dependency_barrier=request.dependency_barrier,
                     priority=request.priority,
                     venture_id=request.candidate_id,
@@ -130,6 +131,10 @@ class CrewAIStageRunner:
     ) -> BaseModel:
         if request.spec.model_role is ModelRole.JUDGE and not request.escalation_required:
             raise ValueError("JUDGE execution requires an explicit escalation record")
+        task_class = task_class_for_request(request)
+        skills = skills_for_task(task_class)
+        skill_ids = [skill.identifier for skill in skills]
+        historical_context = self._historical_context(run_id, request)
         context = CrewAIToolContext(
             run_id=run_id,
             stage_id=request.stage_id,
@@ -149,9 +154,11 @@ class CrewAIStageRunner:
                 request.spec,
                 context,
                 selection=selection,
+                skill_ids=skill_ids,
+                task_class=task_class,
             )
             task = Task(
-                description=self._task_description(request, attempt),
+                description=self._task_description(request, attempt, skills, historical_context),
                 expected_output=request.expected_output,
                 agent=agent,
                 output_pydantic=request.output_model,
@@ -208,9 +215,21 @@ class CrewAIStageRunner:
 
     @staticmethod
     def _task_description(
-        request: CrewTaskRequest[Any], attempt: int
+        request: CrewTaskRequest[Any], attempt: int, skills: list[Any] | None = None,
+        historical_context: str = "",
     ) -> str:
         description = request.description
+        if skills:
+            description += "\n\nAPPLICABLE DBIE SKILLS (procedures, not evidence):\n" + "\n\n".join(
+                f"[{skill.identifier}]\n{skill.instructions}" for skill in skills
+            )
+        if historical_context:
+            description += (
+                "\n\nRETRIEVED DBIE MEMORY (historical decisions and lessons; not current evidence). "
+                "Apply relevant lessons, preserve provenance, and permit reconsideration only "
+                "when new evidence or materially changed circumstances are identified:\n"
+                + historical_context
+            )
         if request.required_tools:
             required_names = ", ".join(
                 item.value for item in request.required_tools
@@ -227,6 +246,48 @@ class CrewAIStageRunner:
                 "values and satisfy the mandatory tool contract."
             )
         return description
+
+    def _historical_context(self, run_id: str, request: CrewTaskRequest[Any]) -> str:
+        policy = getattr(self.catalog, "memory_search_policy", {})
+        minimum_similarity = float(policy.get("minimum_retrieval_similarity", 0.15))
+        result_limit = int(policy.get("retrieval_limit", 5))
+        try:
+            result = self.catalog.gateway.invoke(ToolCallEnvelope(
+                run_id=run_id,
+                stage_id=request.stage_id,
+                task_id=f"{request.task_id}-memory-prefetch",
+                actor_id=actor_id_for(request.spec.role),
+                candidate_id=request.candidate_id,
+                assumption_id=request.assumption_id,
+                tool=ToolName.SEMANTIC_MEMORY_SEARCH,
+                arguments={
+                    "query": (request.description + " " + request.expected_output)[:1800],
+                    "entity_types": ["IDEA", "LESSON", "OUTCOME"],
+                    "top_k": result_limit,
+                    "min_similarity": minimum_similarity,
+                    "exclude_run_id": None,
+                },
+                purpose="Retrieve relevant prior opportunity decisions and lessons",
+                budget=ToolBudget(max_calls=1, timeout_seconds=10, max_retries=0),
+            ))
+            hits = result.payload.get("hits", [])
+            if not isinstance(hits, list):
+                return ""
+            unique: dict[tuple[str, str], dict[str, Any]] = {}
+            for hit in hits:
+                if isinstance(hit, dict) and float(hit.get("similarity", 0)) >= minimum_similarity:
+                    unique.setdefault((str(hit.get("entity_type")), str(hit.get("entity_id"))), hit)
+            return "\n".join(
+                f"{item.get('entity_type')} {item.get('entity_id')} run={item.get('run_id')} "
+                f"similarity={float(item.get('similarity', 0)):.2f}: {item.get('canonical_text', '')[:600]}"
+                for item in unique.values()
+            )
+        except Exception as exc:
+            self.workspaces.append_activity(
+                run_id,
+                f"semantic memory prefetch unavailable for {request.task_id}: {type(exc).__name__}",
+            )
+            return ""
 
     def _verify_required_tools(self, request: CrewTaskRequest[Any]) -> None:
         if not request.required_tools:

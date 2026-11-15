@@ -13,6 +13,10 @@ decision_readiness:
   maximum_human_minutes_per_customer_at_10x: 15
   minimum_supporting_evidence_confidence: 0.5
   maximum_scenario_spread: 1.0
+opportunity_memory:
+  duplicate_similarity_threshold: 0.55
+  minimum_retrieval_similarity: 0.15
+  retrieval_limit: 5
 approvals:
   require_for:
     - external_spend

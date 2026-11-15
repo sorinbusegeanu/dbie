@@ -21,6 +21,7 @@ class ModelExecutionContext(BaseModel):
     agent_id: str
     task_id: str
     task_class: TaskClass
+    skill_ids: list[str] = Field(default_factory=list)
 
 
 class ModelPerformanceRecord(BaseModel):
@@ -35,6 +36,8 @@ class ModelPerformanceRecord(BaseModel):
     task_class: TaskClass
     model_role: ModelRole
     model_id: str
+    effective_temperature: float | None = Field(default=None, ge=0, le=2)
+    skill_ids: list[str] = Field(default_factory=list)
     model_version_or_digest: str | None = None
     quantization: str | None = None
     runtime: str

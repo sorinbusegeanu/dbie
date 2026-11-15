@@ -5,11 +5,13 @@ from __future__ import annotations
 import json
 import math
 import os
+import re
 from collections import defaultdict
 from hashlib import sha256
 from itertools import combinations
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 from urllib.parse import urlparse
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -68,11 +70,13 @@ from dbie.domain.models import (
     PairwiseMatch,
     Run,
 )
+from dbie.domain.memory import BusinessLesson
 from dbie.flows.state import PipelineState, StageName
 from dbie.models.roles import ModelRole
 from dbie.persistence.db import Database
 from dbie.persistence.repositories import (
     AssumptionRepository,
+    BusinessLessonRepository,
     CandidateRepository,
     EvaluationRepository,
     EvidenceRepository,
@@ -118,6 +122,9 @@ class LiveMVPConfig(BaseModel):
     target_raw_ideas: int = Field(default=250, ge=1, le=500)
     max_validation_candidates: int = Field(default=25, ge=1, le=25)
     strict_generation_targets: bool = True
+    duplicate_similarity_threshold: float = Field(default=0.55, ge=0.1, le=1)
+    minimum_memory_similarity: float = Field(default=0.15, ge=-1, le=1)
+    memory_retrieval_limit: int = Field(default=5, ge=1, le=100)
 
 
 class LiveMVPExecutor:
@@ -145,6 +152,7 @@ class LiveMVPExecutor:
         self.configuration_hash = configuration_hash
         self.runs = RunRepository(database)
         self.candidates = CandidateRepository(database)
+        self.lessons = BusinessLessonRepository(database)
         self.assumptions = AssumptionRepository(database)
         self.evidence = EvidenceRepository(database)
         self.experiments = ExperimentRepository(database)
@@ -263,29 +271,42 @@ class LiveMVPExecutor:
                     source_ids=source_urls,
                 )
                 signals.append(signal)
-                self._index(
-                    state.run_id,
-                    "PROBLEM",
-                    signal.id,
-                    f"{signal.title}. {signal.description}",
-                )
         if self.config.strict_generation_targets and len(signals) < self.config.target_signals:
             raise ValueError(
                 f"live discovery returned {len(signals)} grounded signals; "
                 f"target is {self.config.target_signals}"
             )
         retained = signals[: self.config.target_signals]
+        for signal in retained:
+            self._index(state.run_id, "PROBLEM", signal.id, f"{signal.title}. {signal.description}")
         return {
             "signal_ids": [item.id for item in retained],
             "artifacts": {
                 "signals": [item.model_dump(mode="json") for item in retained],
                 "discovery_search_gaps": search_gaps,
                 "observed_signal_count": len(retained),
+                "excluded_signal_count": max(0, len(signals) - len(retained)),
             },
         }
 
     def _generate_ideas(self, state: PipelineState) -> dict[str, Any]:
         signals = state.artifacts.get("signals", [])
+        prior_ideas = self.candidates.all()
+        prior_context = [
+            {
+                "candidate_id": item.id,
+                "run_id": item.run_id,
+                "title": item.title,
+                "problem": item.problem_id,
+                "customer": item.target_customer,
+                "buyer": item.buyer,
+                "value": item.value_proposition,
+                "solution": item.product_form,
+                "lifecycle": item.lifecycle_state.value,
+                "decision_reasons": next((event["payload"].get("reason_codes", []) for event in reversed(self.candidates.events.for_entity("BusinessIdea", item.id)) if event["event_type"] == "INVESTMENT_DECISION_RECORDED"), []),
+            }
+            for item in prior_ideas[-30:]
+        ]
         per_agent = math.ceil(self.config.target_raw_ideas / len(IDEATION_SPECS))
         signal_context = json.dumps(signals, ensure_ascii=False)
         requests = [
@@ -296,6 +317,11 @@ class LiveMVPExecutor:
                 spec=spec,
                 description=(
                     "First use semantic_memory_search to check for related prior ideas. "
+                    "The following persisted candidate history is context: avoid duplicates, "
+                    "but retain materially different products for the same problem. A prior "
+                    "rejection can be reconsidered only with explicit new evidence or a "
+                    "materially changed circumstance; explain that in novelty_lineage. "
+                    "Prior candidates:\n" + json.dumps(prior_context, ensure_ascii=False) + "\n"
                     f"Then generate at least {per_agent} materially distinct business "
                     f"ideas through the {spec.role} lens for mandate {state.mandate!r}. "
                     "Every idea must cite one or more supplied signal titles and provide "
@@ -319,6 +345,7 @@ class LiveMVPExecutor:
         outputs = self.task_runner.run_tasks(state.run_id, requests)
         unique: list[Any] = []
         seen: set[str] = set()
+        duplicate_decisions: list[dict[str, Any]] = []
         signal_titles = {
             _normalize_key(str(item.get("title", ""))) for item in signals
         }
@@ -327,6 +354,13 @@ class LiveMVPExecutor:
             for draft in batch.ideas:
                 key = _normalize_key(draft.one_sentence_thesis)
                 if key in seen:
+                    duplicate_id = str(uuid4())
+                    duplicate_decisions.append({"candidate_id": duplicate_id, "title": draft.title, "status": "REJECTED", "reason": "SAME_RUN_EXACT_THESIS"})
+                    self.candidates.events.append(
+                        run_id=state.run_id, entity_type="OpportunityDeduplication",
+                        entity_id=duplicate_id, event_type="CANDIDATE_REJECTED_AS_DUPLICATE",
+                        payload={"title": draft.title, "reason": "SAME_RUN_EXACT_THESIS"},
+                    )
                     continue
                 if not any(
                     _normalize_key(title) in signal_titles for title in draft.signal_titles
@@ -340,10 +374,68 @@ class LiveMVPExecutor:
                 f"target is {self.config.target_raw_ideas}"
             )
         ideas: list[BusinessIdea] = []
+        memory_retrieval_failures: list[str] = []
         for draft in unique[: self.config.target_raw_ideas]:
+            candidate_pool = [*prior_ideas, *ideas]
+            semantic_ids: set[str] = set()
+            try:
+                semantic_hits = self.memory.search(
+                    f"{draft.problem_title}. {draft.one_sentence_thesis}. {draft.target_customer}. "
+                    f"{draft.buyer or ''}. {draft.value_proposition}. {draft.product_form}. {draft.delivery_model}",
+                    top_k=self.config.memory_retrieval_limit,
+                    entity_types={"IDEA"},
+                    min_similarity=self.config.minimum_memory_similarity,
+                )
+                semantic_ids = {item.entity_id for item in semantic_hits}
+            except Exception as exc:
+                semantic_ids = set()
+                memory_retrieval_failures.append(f"{draft.title}: {type(exc).__name__}")
+            comparisons = []
+            for historical in candidate_pool:
+                score = _compare_idea_dimensions(draft, historical)
+                if historical.id in semantic_ids or score["similarity"] >= self.config.duplicate_similarity_threshold:
+                    comparisons.append((historical, score))
+            duplicate = next(
+                ((historical, score) for historical, score in comparisons
+                 if score["duplicate"] and score["similarity"] >= self.config.duplicate_similarity_threshold),
+                None,
+            )
+            signal_by_title = {_normalize_key(str(item.get("title", ""))): item for item in signals}
+            new_signal_sources = list(dict.fromkeys(
+                str(source_id)
+                for title in draft.signal_titles
+                for source_id in signal_by_title.get(_normalize_key(title), {}).get("source_ids", [])
+            ))
+            new_signal_ids = list(dict.fromkeys(
+                str(signal_by_title.get(_normalize_key(title), {}).get("id"))
+                for title in draft.signal_titles
+                if signal_by_title.get(_normalize_key(title), {}).get("id")
+            ))
+            reconsidered = _may_reconsider(duplicate[0], draft, new_signal_sources) if duplicate else False
+            if duplicate and not reconsidered:
+                duplicate_id = str(uuid4())
+                duplicate_reason = (
+                    "SEMANTIC_DUPLICATE"
+                    if duplicate[0].lifecycle_state not in {CandidateState.KILL, CandidateState.ITERATE, CandidateState.MORE_EVIDENCE}
+                    else "RECONSIDERATION_REQUIRES_EXPLICIT_RATIONALE_AND_NEW_SOURCES"
+                )
+                duplicate_decisions.append({
+                    "candidate_id": duplicate_id,
+                    "title": draft.title, "status": "LINKED", "reason": duplicate_reason,
+                    "linked_candidate_id": duplicate[0].id, "prior_run_id": duplicate[0].run_id,
+                    "similarity": duplicate[1]["similarity"], "dimensions": duplicate[1],
+                    "retrieval_method": "semantic_shortlist_and_dimension_check" if duplicate[0].id in semantic_ids else "deterministic_dimension_fallback",
+                })
+                self.candidates.events.append(
+                    run_id=state.run_id, entity_type="OpportunityDeduplication",
+                    entity_id=duplicate_id, event_type="CANDIDATE_LINKED_AS_DUPLICATE",
+                    payload={"title": draft.title, "candidate_id": duplicate_id, "linked_candidate_id": duplicate[0].id, "reason": duplicate_reason},
+                )
+                continue
             idea = BusinessIdea(
                 run_id=state.run_id,
                 problem_id=sha256(draft.problem_title.encode()).hexdigest()[:24],
+                canonical_identity=sha256(_canonical_opportunity_identity(draft).encode()).hexdigest(),
                 title=draft.title,
                 one_sentence_thesis=draft.one_sentence_thesis,
                 target_customer=draft.target_customer,
@@ -353,6 +445,10 @@ class LiveMVPExecutor:
                 product_form=draft.product_form,
                 delivery_model=draft.delivery_model,
                 why_now=draft.why_now,
+                novelty_lineage=draft.novelty_lineage,
+                source_signal_ids=new_signal_ids,
+                source_urls=new_signal_sources,
+                duplicate_of_ids=[duplicate[0].id] if reconsidered else [],
                 digital_eligibility=draft.digital_eligibility,
                 autonomous_scalability=draft.autonomous_scalability,
             )
@@ -364,12 +460,27 @@ class LiveMVPExecutor:
                 f"{idea.title}. {idea.one_sentence_thesis}. {idea.target_customer}",
             )
             ideas.append(idea)
+            duplicate_decisions.append({
+                "title": draft.title,
+                "status": "RECONSIDERED" if reconsidered else ("RELATED_ACCEPTED" if any(score["related"] for _, score in comparisons) else "ACCEPTED"),
+                "reason": "EXPLICIT_NEW_EVIDENCE_OR_CHANGED_CIRCUMSTANCE" if reconsidered else "NO_MATERIAL_DUPLICATE",
+                "linked_candidate_id": duplicate[0].id if duplicate else None,
+            })
+            if reconsidered:
+                self.candidates.events.append(
+                    run_id=state.run_id, entity_type="BusinessIdea", entity_id=idea.id,
+                    event_type="OPPORTUNITY_RECONSIDERED",
+                    payload={"prior_candidate_id": duplicate[0].id, "reason": "EXPLICIT_NEW_EVIDENCE_AND_NEW_SOURCE_IDS", "new_source_ids": sorted(set(new_signal_sources) - set(duplicate[0].source_urls)), "novelty_lineage": draft.novelty_lineage},
+                )
         return {
             "candidate_ids": [item.id for item in ideas],
             "artifacts": {
                 "raw_idea_count": len(unique),
                 "deduplicated_idea_count": len(ideas),
                 "idea_records": [item.model_dump(mode="json") for item in ideas],
+                "duplicate_decisions": duplicate_decisions,
+                "duplicate_count": sum(item["status"] in {"REJECTED", "LINKED"} for item in duplicate_decisions),
+                "memory_retrieval_failures": memory_retrieval_failures,
             },
         }
 
@@ -411,6 +522,33 @@ class LiveMVPExecutor:
             }
             if result.eligible:
                 eligible.append(idea.id)
+            else:
+                rejected_idea = self.candidates.set_decision(
+                    idea.id, list(result.reason_codes),
+                    ["Change the delivery or product model to satisfy every hard eligibility criterion."],
+                    DecisionType.KILL,
+                )
+                reason_codes = list(result.reason_codes)
+                self._index(
+                    state.run_id, "IDEA", idea.id,
+                    f"{rejected_idea.title}. {rejected_idea.one_sentence_thesis}. "
+                    f"Lifecycle KILL after eligibility. Reasons: {', '.join(reason_codes)}",
+                )
+                lesson = self.lessons.create(BusinessLesson(
+                    category="hard_eligibility",
+                    opportunity_id=idea.id,
+                    run_id=state.run_id,
+                    task_id="eligibility-gate",
+                    attempted_or_assumed="Opportunity can be delivered digitally and scale autonomously.",
+                    expected_result="All deterministic digital eligibility and scalability checks pass.",
+                    observed_result="Candidate failed the deterministic eligibility gate.",
+                    root_cause="; ".join(reason_codes) or "Eligibility requirements not met",
+                    recommended_behavior="Do not revive without materially changing the product or delivery model and rechecking every hard eligibility criterion.",
+                    applicability_conditions=["same product and delivery model"],
+                    confidence=1,
+                    validation_status="VALIDATED",
+                ))
+                self._index(state.run_id, "LESSON", lesson.id, _lesson_memory_text(lesson))
         selected = eligible[: self.config.max_validation_candidates]
         if not selected:
             raise ValueError(
@@ -638,6 +776,23 @@ class LiveMVPExecutor:
             ]
             result = validate_assumption(assumption, items)
             self.assumptions.save(result)
+            if result.status in {AssumptionStatus.RESEARCH_CONTRADICTED, AssumptionStatus.EXPERIMENT_CONTRADICTED}:
+                lesson = self.lessons.create(BusinessLesson(
+                    category="contradicted_assumption",
+                    opportunity_id=result.idea_id,
+                    run_id=state.run_id,
+                    task_id="validate-assumptions",
+                    attempted_or_assumed=result.statement,
+                    expected_result=result.validation_condition,
+                    observed_result=result.status.value,
+                    root_cause="Recorded contrary evidence contradicts the assumption.",
+                    evidence_ids=result.evidence_against_ids,
+                    recommended_behavior="Do not reuse this assumption as supported; test a revised claim against independent sources.",
+                    applicability_conditions=[result.category.value, "same buyer and product context"],
+                    confidence=result.current_confidence or 0.7,
+                    validation_status="VALIDATED" if result.evidence_against_ids else "HYPOTHESIS",
+                ))
+                self._index(state.run_id, "LESSON", lesson.id, _lesson_memory_text(lesson))
             value = result.model_dump(mode="json")
             value["agent_recommendation"] = (
                 advisory_by_id[assumption.id].model_dump(mode="json")
@@ -649,6 +804,7 @@ class LiveMVPExecutor:
             "artifacts": {
                 "validated_assumptions": validated,
                 "validation_contradictions": advisory.contradictions,
+                "lessons_created": [item.model_dump(mode="json") for item in self.lessons.all() if item.run_id == state.run_id],
             }
         }
 
@@ -757,6 +913,23 @@ class LiveMVPExecutor:
                     unresolved=draft.unresolved,
                 )
                 findings.append(finding)
+                if evidence_ids:
+                    lesson = self.lessons.create(BusinessLesson(
+                        category="evidence_confirmed_red_team_finding",
+                        opportunity_id=draft.candidate_id,
+                        run_id=state.run_id,
+                        task_id=request.task_id,
+                        attempted_or_assumed=draft.attack,
+                        expected_result="The proposed opportunity withstands evidence-backed adversarial review.",
+                        observed_result="Red-team attack supported by cited source records.",
+                        root_cause="Evidence-supported adversarial finding; see linked source records.",
+                        evidence_ids=evidence_ids,
+                        recommended_behavior="Check this failure mode early in future opportunities with the same buyer, product, or operating condition.",
+                        applicability_conditions=["same underlying failure mode"],
+                        confidence=min(0.9, 0.5 + 0.1 * len(evidence_ids)),
+                        validation_status="VALIDATED",
+                    ))
+                    self._index(state.run_id, "LESSON", lesson.id, _lesson_memory_text(lesson))
                 self.evaluations.create(
                     Evaluation(
                         run_id=state.run_id,
@@ -818,11 +991,47 @@ class LiveMVPExecutor:
                 finalist_ids.append(candidate_id)
             else:
                 service.transition(candidate_id, CandidateState(decision.decision.value))
+            reconsider_conditions = (
+                ["Provide independent customer or purchase evidence addressing the failed assumptions."]
+                if decision.decision in {DecisionType.KILL, DecisionType.MORE_EVIDENCE}
+                else ["Demonstrate a material change in buyer, product, or delivery model."]
+            )
+            final_idea = self.candidates.set_decision(candidate_id, decision.reason_codes, reconsider_conditions, decision.decision)
+            final_state = final_idea.lifecycle_state.value
+            self._index(
+                state.run_id,
+                "IDEA",
+                candidate_id,
+                f"{final_idea.title}. {final_idea.one_sentence_thesis}. "
+                f"Customer: {final_idea.target_customer}. Decision: {decision.decision.value}. "
+                f"Reasons: {', '.join(decision.reason_codes)}",
+            )
+            if decision.decision is not DecisionType.BUILD:
+                lesson = self.lessons.create(BusinessLesson(
+                    category="opportunity_decision",
+                    opportunity_id=candidate_id,
+                    run_id=state.run_id,
+                    task_id="red-team",
+                    attempted_or_assumed="; ".join(item.statement for item in assumptions[:5]) or final_idea.one_sentence_thesis,
+                    expected_result="Critical assumptions are supported sufficiently for a build recommendation.",
+                    observed_result=f"Decision {decision.decision.value}; reasons: {', '.join(decision.reason_codes)}",
+                    root_cause="Evidence-linked decision rationale" if any(item.evidence_for_ids or item.evidence_against_ids for item in assumptions) else "Unverified model or policy hypothesis; not established as an observed market failure",
+                    evidence_ids=list(dict.fromkeys(eid for item in assumptions for eid in item.evidence_for_ids + item.evidence_against_ids)),
+                    recommended_behavior="Retrieve this decision and retest the changed or contradicted assumption before proposing this opportunity again.",
+                    applicability_conditions=["same or materially similar buyer and product"],
+                    confidence=0.75 if any(item.evidence_for_ids or item.evidence_against_ids for item in assumptions) else 0.35,
+                    validation_status="VALIDATED" if any(item.evidence_for_ids or item.evidence_against_ids for item in assumptions) else "HYPOTHESIS",
+                ))
+                self._index(
+                    state.run_id, "LESSON", lesson.id,
+                    _lesson_memory_text(lesson),
+                )
         return {
             "finalist_ids": finalist_ids,
             "artifacts": {
                 "red_team_findings": [item.model_dump(mode="json") for item in findings],
                 "validation_decisions": decisions,
+                "lessons_created": [item.model_dump(mode="json") for item in self.lessons.all() if item.run_id == state.run_id],
             },
         }
 
@@ -1085,10 +1294,62 @@ class LiveMVPExecutor:
                 "observed_outcome_ids": used_outcomes,
                 "observed_market_evidence": bool(used_outcomes),
             }
+        forecast_lessons: list[BusinessLesson] = []
+        predictions_by_experiment = {item.experiment_id: item for item in self.experiment_predictions.for_run(state.run_id)}
+        experiments_by_id = {item.id: item for item in experiments}
+        for outcome in outcomes:
+            prediction = predictions_by_experiment.get(outcome.experiment_id)
+            experiment = experiments_by_id.get(outcome.experiment_id)
+            if prediction is None or experiment is None:
+                continue
+            interpretation = outcome.interpretation.casefold()
+            if any(term in interpretation for term in ("failed", "failure", "contradicted", "below threshold", "threshold not met")):
+                failed_lesson = self.lessons.create(BusinessLesson(
+                    category="failed_validation_experiment",
+                    opportunity_id=experiment.idea_id,
+                    run_id=state.run_id,
+                    task_id="observe-and-decide",
+                    attempted_or_assumed=experiment.hypothesis,
+                    expected_result=experiment.threshold,
+                    observed_result=outcome.interpretation,
+                    root_cause="Measured experiment interpretation reports failure; see outcome and evidence sources.",
+                    evidence_ids=outcome.evidence_source_ids,
+                    recommended_behavior="Use the measured failure to revise or retire the tested assumption; do not generalize beyond its sample and conditions.",
+                    applicability_conditions=[experiment.assumption_id, experiment.sample_definition],
+                    confidence=0.8 if outcome.evidence_source_ids else 0.4,
+                    validation_status="VALIDATED" if outcome.evidence_source_ids else "HYPOTHESIS",
+                ))
+                self._index(state.run_id, "LESSON", failed_lesson.id, _lesson_memory_text(failed_lesson))
+            predicted = prediction.predicted_metrics.model_dump(exclude_none=True, exclude={"currency", "period_months"})
+            observed = outcome.observed_metrics.model_dump(exclude_none=True, exclude={"currency", "period_months"})
+            discrepancies = [
+                f"{name}: predicted {predicted[name]}, observed {value} ({abs(float(value)-float(predicted[name]))/max(abs(float(predicted[name])), 1e-9):.0%} error)"
+                for name, value in observed.items()
+                if name in predicted and abs(float(value)-float(predicted[name])) / max(abs(float(predicted[name])), 1e-9) > 0.5
+            ]
+            if discrepancies:
+                lesson = self.lessons.create(BusinessLesson(
+                    category="forecast_discrepancy",
+                    opportunity_id=experiment.idea_id,
+                    run_id=state.run_id,
+                    task_id="observe-and-decide",
+                    attempted_or_assumed=prediction.rationale,
+                    expected_result="; ".join(f"{key}={value}" for key, value in predicted.items()),
+                    observed_result="; ".join(discrepancies),
+                    root_cause="Forecast discrepancy recorded; root cause requires validation and is not inferred from error alone.",
+                    evidence_ids=outcome.evidence_source_ids,
+                    recommended_behavior="Revisit the forecast drivers and recalibrate only after identifying which assumption changed.",
+                    applicability_conditions=[experiment.assumption_id, "same metric definition and period"],
+                    confidence=0.8,
+                    validation_status="OBSERVED",
+                ))
+                forecast_lessons.append(lesson)
+                self._index(state.run_id, "LESSON", lesson.id, _lesson_memory_text(lesson))
         return {
             "artifacts": {
                 "observed_decisions": decisions,
                 "observed_outcome_count": len(outcomes),
+                "forecast_lessons": [item.model_dump(mode="json") for item in forecast_lessons],
                 "unexecuted_experiment_ids": [
                     item.id
                     for item in experiments
@@ -1315,6 +1576,7 @@ class LiveMVPExecutor:
             "rejected_ungrounded_claims": len(
                 state.artifacts.get("rejected_evidence_claims", [])
             ),
+                "duplicate_candidates": int(state.artifacts.get("duplicate_count", 0)),
         }
         path = self.workspaces.ensure(state.run_id).deliverables / "run-overview.json"
         temporary = path.with_suffix(".json.tmp")
@@ -1482,6 +1744,83 @@ def _slug(value: str) -> str:
 
 def _normalize_key(value: str) -> str:
     return " ".join(value.casefold().split())
+
+
+def _tokens(value: str) -> set[str]:
+    synonyms = {
+        "automated": "automate", "automation": "automate", "automating": "automate",
+        "regulatory": "compliance", "regulation": "compliance", "regulations": "compliance",
+        "checks": "review", "check": "review", "inspections": "review",
+        "recurring": "repetitive", "repeated": "repetitive", "manual": "repetitive",
+        "departments": "team", "department": "team", "teams": "team",
+        "webapp": "web", "application": "web", "applications": "web",
+        "streamlines": "automate", "streamline": "automate", "replaces": "automate",
+        "software": "product", "platform": "product", "tool": "product",
+    }
+    return {synonyms.get(token, token) for token in re.findall(r"[a-z0-9]+", value.casefold()) if len(token) > 2}
+
+
+def _similarity(left: str, right: str) -> float:
+    a, b = _tokens(left), _tokens(right)
+    return len(a & b) / len(a | b) if a and b else 0.0
+
+
+def _compare_idea_dimensions(draft: Any, prior: BusinessIdea) -> dict[str, Any]:
+    problem = _similarity(draft.problem_title + " " + draft.one_sentence_thesis,
+                          prior.title + " " + prior.one_sentence_thesis)
+    customer = _similarity(draft.target_customer + " " + (draft.buyer or ""),
+                           prior.target_customer + " " + (prior.buyer or ""))
+    value = _similarity(draft.value_proposition, prior.value_proposition)
+    solution = _similarity(draft.product_form + " " + draft.delivery_model,
+                           prior.product_form + " " + prior.delivery_model)
+    total = 0.30 * problem + 0.20 * customer + 0.25 * value + 0.25 * solution
+    duplicate = problem >= 0.35 and customer >= 0.30 and solution >= 0.30 and total >= 0.35
+    related = problem >= 0.25 and not duplicate
+    return {
+        "problem_similarity": round(problem, 4),
+        "customer_similarity": round(customer, 4),
+        "value_similarity": round(value, 4),
+        "solution_similarity": round(solution, 4),
+        "similarity": round(total, 4),
+        "duplicate": duplicate,
+        "related": related,
+    }
+
+
+def _explicit_reconsideration(novelty_lineage: str) -> bool:
+    value = novelty_lineage.casefold()
+    return any(term in value for term in (
+        "reconsider", "new evidence", "materially changed", "changed circumstance",
+        "new condition", "since rejection",
+    ))
+
+
+def _may_reconsider(prior: BusinessIdea, draft: Any, new_source_ids: list[str]) -> bool:
+    return bool(
+        prior.lifecycle_state in {CandidateState.KILL, CandidateState.ITERATE, CandidateState.MORE_EVIDENCE}
+        and _explicit_reconsideration(draft.novelty_lineage)
+        and set(new_source_ids) - set(prior.source_urls)
+    )
+
+
+def _canonical_opportunity_identity(draft: Any) -> str:
+    dimensions = (
+        draft.problem_title, draft.target_customer, draft.buyer or "",
+        draft.value_proposition, draft.product_form, draft.delivery_model,
+    )
+    return " | ".join(_normalize_key(item) for item in dimensions)
+
+
+def _lesson_memory_text(lesson: BusinessLesson) -> str:
+    return (
+        f"{lesson.category} [{lesson.validation_status}, confidence={lesson.confidence:.2f}]. "
+        f"Attempted: {lesson.attempted_or_assumed}. Expected: {lesson.expected_result}. "
+        f"Observed: {lesson.observed_result}. Cause: {lesson.root_cause}. "
+        f"Evidence IDs: {', '.join(lesson.evidence_ids) or 'none'}. "
+        f"Recommended: {lesson.recommended_behavior}. "
+        f"Conditions: {'; '.join(lesson.applicability_conditions)}. "
+        f"Opportunity={lesson.opportunity_id}; run={lesson.run_id}; task={lesson.task_id}."
+    )
 
 
 def _publisher_from_url(url: str) -> str:

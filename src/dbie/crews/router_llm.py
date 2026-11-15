@@ -36,7 +36,7 @@ class RouterLLM(BaseLLM):
         selection: ModelSelection = ModelSelection.PRIMARY,
         execution_context: ModelExecutionContext | None = None,
         performance_sink: ModelPerformanceSink | None = None,
-        temperature: float | None = 0,
+        temperature: float | None = None,
     ) -> None:
         if profile_name is not None and model_role is not None:
             raise ValueError("select either a profile or a model role, not both")
@@ -108,9 +108,14 @@ class RouterLLM(BaseLLM):
                 if item.get("role") in {"system", "user", "assistant", "tool"}
             ]
         )
+        effective_temperature = self.temperature
+        if effective_temperature is None and self.execution_context is not None:
+            effective_temperature = self.router.config.task_temperatures.get(
+                self.execution_context.task_class, 0.1
+            )
         request = GenerationRequest(
             messages=normalized,
-            temperature=self.temperature,
+            temperature=effective_temperature,
             tools=tools or [],
         )
         started = monotonic()
@@ -224,6 +229,8 @@ class RouterLLM(BaseLLM):
                 task_class=context.task_class,
                 model_role=role,
                 model_id=model_id,
+                effective_temperature=request.temperature,
+                skill_ids=context.skill_ids,
                 runtime=runtime,
                 thinking_mode=thinking_mode,
                 context_limit=context_limit,

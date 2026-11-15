@@ -74,6 +74,7 @@ class AutonomousScalability(BaseModel):
 
 class BusinessIdea(CanonicalRecord):
     problem_id: str
+    canonical_identity: str | None = None
     title: str = Field(min_length=1)
     one_sentence_thesis: str = Field(min_length=1)
     target_customer: str = Field(min_length=1)
@@ -83,6 +84,14 @@ class BusinessIdea(CanonicalRecord):
     product_form: str = Field(min_length=1)
     delivery_model: str = Field(min_length=1)
     why_now: str | None = None
+    novelty_lineage: str | None = None
+    source_signal_ids: list[str] = Field(default_factory=list)
+    source_urls: list[str] = Field(default_factory=list)
+    duplicate_of_ids: list[str] = Field(default_factory=list)
+    decision_reason_codes: list[str] = Field(default_factory=list)
+    final_decision: DecisionType | None = None
+    last_evaluated_at: datetime | None = None
+    reconsideration_conditions: list[str] = Field(default_factory=list)
     digital_eligibility: DigitalEligibility | None = None
     autonomous_scalability: AutonomousScalability | None = None
     assumption_ids: list[str] = Field(default_factory=list)

@@ -10,7 +10,7 @@ from hashlib import sha256
 from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import insert, select
+from sqlalchemy import insert, select, update
 
 from dbie.persistence.db import Database
 from dbie.persistence.schema import semantic_memories
@@ -83,6 +83,8 @@ class SemanticSearchHit(BaseModel):
     similarity: float
     run_id: str
     embedding_model: str
+    source_record_id: str | None = None
+    source_ids: list[str] = Field(default_factory=list)
 
 
 class SemanticMemoryRepository:
@@ -112,16 +114,24 @@ class SemanticMemoryRepository:
         )
         with self.database.engine.begin() as connection:
             existing = connection.execute(
-                select(semantic_memories.c.id).where(
+                select(semantic_memories).where(
                     semantic_memories.c.entity_type == entity_type,
                     semantic_memories.c.entity_id == entity_id,
                     semantic_memories.c.embedding_model == batch.model_id,
                     semantic_memories.c.normalization_version
                     == batch.normalization_version,
                 )
-            ).scalar_one_or_none()
+            ).mappings().one_or_none()
             if existing is not None:
-                return self.get(existing)
+                connection.execute(update(semantic_memories).where(
+                    semantic_memories.c.id == existing["id"]
+                ).values(
+                    run_id=record.run_id, canonical_text=record.canonical_text,
+                    embedding=record.embedding, embedding_dimension=record.embedding_dimension,
+                ))
+                return record.model_copy(update={
+                    "id": existing["id"], "created_at": existing["created_at"]
+                })
             connection.execute(insert(semantic_memories).values(**record.model_dump()))
         return record
 
@@ -143,7 +153,14 @@ class SemanticMemoryRepository:
         top_k: int = 10,
         entity_types: set[str] | None = None,
         exclude_run_id: str | None = None,
+        min_similarity: float = 0.05,
     ) -> list[SemanticSearchHit]:
+        if not normalize_embedding_text(query):
+            return []
+        if not -1 <= min_similarity <= 1:
+            raise ValueError("min_similarity must be between -1 and 1")
+        if top_k < 1:
+            return []
         query_batch = self.embeddings.embed([normalize_embedding_text(query)])
         query_vector = query_batch.vectors[0]
         statement = select(semantic_memories).where(
@@ -167,10 +184,20 @@ class SemanticMemoryRepository:
                 similarity=_cosine(query_vector, row["embedding"]),
                 run_id=row["run_id"],
                 embedding_model=row["embedding_model"],
+                source_record_id=row["id"],
+                source_ids=[f"{row['entity_type']}:{row['entity_id']}@{row['run_id']}"],
             )
             for row in rows
         ]
-        return sorted(hits, key=lambda hit: hit.similarity, reverse=True)[:top_k]
+        unique: dict[tuple[str, str], SemanticSearchHit] = {}
+        for hit in sorted(hits, key=lambda item: (-item.similarity, item.entity_type, item.entity_id)):
+            key = (hit.entity_type, normalize_embedding_text(hit.canonical_text).casefold())
+            if hit.similarity >= min_similarity:
+                if key not in unique:
+                    unique[key] = hit
+                else:
+                    unique[key].source_ids.extend(hit.source_ids)
+        return list(unique.values())[:max(0, top_k)]
 
 
 def _cosine(left: list[float], right: list[float]) -> float:

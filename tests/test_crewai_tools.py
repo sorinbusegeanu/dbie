@@ -53,3 +53,19 @@ def test_crewai_wrapper_scopes_database_list_queries_to_context_run() -> None:
     assert envelope.arguments["parameters"] == {
         "run_id": "run-42"
     }
+
+
+def test_semantic_memory_tool_can_restrict_results_to_prior_runs() -> None:
+    value = gateway(FakeAdapter())
+    value.invoke = Mock(return_value=ToolResult(tool=ToolName.SEMANTIC_MEMORY_SEARCH))
+    context = CrewAIToolContext(
+        run_id="run-current", stage_id="generate_ideas", task_id="memory",
+        actor_id="IdeaGenerator",
+    )
+    tool = crewai_tools_for(value, context, [ToolName.SEMANTIC_MEMORY_SEARCH])[0]
+
+    tool._run(query="buyer demand", entity_types=["IDEA"], exclude_current_run=True)
+
+    envelope = value.invoke.call_args.args[0]
+    assert envelope.arguments["exclude_run_id"] == "run-current"
+    assert "exclude_current_run" not in envelope.arguments

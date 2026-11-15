@@ -243,9 +243,12 @@ BUILDER_SPECS = tuple(
 
 
 class CrewCatalog:
-    def __init__(self, gateway: ToolGateway, llm: RouterLLM) -> None:
+    def __init__(self, gateway: ToolGateway, llm: RouterLLM, *, memory_search_policy: dict[str, float | int] | None = None) -> None:
         self.gateway = gateway
         self.llm = llm
+        self.memory_search_policy = memory_search_policy or {
+            "minimum_retrieval_similarity": 0.15, "retrieval_limit": 5
+        }
 
     @property
     def specs(self) -> tuple[ActorSpec, ...]:
@@ -264,6 +267,8 @@ class CrewCatalog:
         context: CrewAIToolContext,
         *,
         selection: ModelSelection = ModelSelection.PRIMARY,
+        skill_ids: list[str] | None = None,
+        task_class: TaskClass | None = None,
     ) -> Agent:
         actor_id = actor_id_for(spec.role)
         actor_context = CrewAIToolContext(
@@ -288,7 +293,8 @@ class CrewCatalog:
                     crew_id=spec.group,
                     agent_id=actor_id,
                     task_id=context.task_id,
-                    task_class=task_class_for_actor(spec),
+                    task_class=task_class or task_class_for_actor(spec),
+                    skill_ids=skill_ids or [],
                 ),
                 selection=selection,
             ),
@@ -329,13 +335,29 @@ def task_class_for_actor(spec: ActorSpec) -> TaskClass:
         "Test Repair Agent": TaskClass.TEST_FIX_LOOP,
         "Integration Agent": TaskClass.MVP_IMPLEMENTATION,
     }
+    if spec.group == "ideation":
+        return TaskClass.DISCOVERY_IDEATION
     if spec.role in by_role:
         return by_role[spec.role]
-    if spec.group == "ideation":
-        return TaskClass.OPPORTUNITY_SYNTHESIS
     if spec.group == "red_team":
         return TaskClass.INDEPENDENT_RED_TEAM
     return TaskClass.MARKET_EVIDENCE
+
+
+def task_class_for_request(request: object) -> TaskClass:
+    """Resolve stage-specific classes where the same actor does different work."""
+    task_id = str(getattr(request, "task_id", ""))
+    if task_id == "portfolio-tournament":
+        return TaskClass.JUDGE_INVESTMENT_DECISION
+    if task_id in {"observed-outcome-decision", "run-conclusion"}:
+        return TaskClass.INVESTMENT_DECISION
+    if task_id == "dossier-synthesis":
+        return TaskClass.OPPORTUNITY_SYNTHESIS
+    if task_id == "business-model-comparison":
+        return TaskClass.FINANCIAL_ANALYSIS
+    if task_id == "evidence-reconciliation":
+        return TaskClass.ASSUMPTION_VALIDATION
+    return task_class_for_actor(getattr(request, "spec"))
 
 
 def deduplicate_idea_theses(theses: list[str]) -> list[str]:

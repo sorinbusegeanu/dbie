@@ -105,6 +105,19 @@ semantic_memories = Table(
     ),
 )
 
+business_lessons = Table(
+    "business_lessons",
+    metadata,
+    Column("id", String(36), primary_key=True),
+    Column("run_id", String(36), nullable=False, index=True),
+    Column("idea_id", String(36), nullable=False, index=True),
+    Column("category", String(64), nullable=False, index=True),
+    Column("validation_status", String(32), nullable=False, index=True),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    Column("updated_at", DateTime(timezone=True), nullable=False),
+    Column("payload", JSON, nullable=False),
+)
+
 pairwise_matches = Table(
     "pairwise_matches",
     metadata,

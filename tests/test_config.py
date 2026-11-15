@@ -1,7 +1,8 @@
 from pathlib import Path
 
-from dbie.config import load_models_config, load_settings
+from dbie.config import load_models_config, load_opportunity_memory_policy, load_settings
 from dbie.models.roles import ModelRole
+from dbie.models.task_roles import TaskClass
 
 
 def test_requested_ollama_models_are_exact() -> None:
@@ -55,3 +56,14 @@ def test_specialized_model_roles_are_configuration_not_crew_logic() -> None:
         "gpt-oss:20b-64k"
     )
     assert all(profile.family != "deepseek-r1" for profile in models.profiles.values())
+    assert models.task_temperatures[TaskClass.DISCOVERY_IDEATION] == 0.8
+    assert models.task_temperatures[TaskClass.OPPORTUNITY_SYNTHESIS] == 0.4
+    assert models.task_temperatures[TaskClass.RESEARCH_PLANNING] == 0.3
+    assert models.task_temperatures[TaskClass.FINANCIAL_ANALYSIS] == 0.0
+    assert models.task_temperatures[TaskClass.INVESTMENT_DECISION] == 0.0
+    assert models.task_temperatures[TaskClass.JUDGE_INVESTMENT_DECISION] == 0.0
+    assert load_opportunity_memory_policy(load_settings()) == {
+        "duplicate_similarity_threshold": 0.55,
+        "minimum_retrieval_similarity": 0.15,
+        "retrieval_limit": 5,
+    }

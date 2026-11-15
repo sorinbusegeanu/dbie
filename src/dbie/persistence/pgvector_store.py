@@ -108,7 +108,14 @@ class PgVectorStore:
         top_k: int = 10,
         entity_types: set[str] | None = None,
         exclude_run_id: str | None = None,
+        min_similarity: float = 0.05,
     ) -> list[SemanticSearchHit]:
+        if not normalize_embedding_text(query):
+            return []
+        if not -1 <= min_similarity <= 1:
+            raise ValueError("min_similarity must be between -1 and 1")
+        if top_k < 1:
+            return []
         batch = self.embeddings.embed([normalize_embedding_text(query)])
         distance = self.table.c.embedding.cosine_distance(batch.vectors[0])
         statement = select(self.table, distance.label("distance"))
@@ -127,6 +134,17 @@ class PgVectorStore:
                 similarity=1.0 - float(row["distance"]),
                 run_id=row["run_id"],
                 embedding_model=row["embedding_model"],
+                source_record_id=row["id"],
+                source_ids=[f"{row['entity_type']}:{row['entity_id']}@{row['run_id']}"],
             )
             for row in rows
+            if 1.0 - float(row["distance"]) >= min_similarity
         ]
+        unique: dict[tuple[str, str], SemanticSearchHit] = {}
+        for hit in hits:
+            key = (hit.entity_type, normalize_embedding_text(hit.canonical_text).casefold())
+            if key not in unique:
+                unique[key] = hit
+            else:
+                unique[key].source_ids.extend(hit.source_ids)
+        return list(unique.values())

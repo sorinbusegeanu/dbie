@@ -20,6 +20,7 @@ class MemoryStore(Protocol):
         top_k: int = 10,
         entity_types: set[str] | None = None,
         exclude_run_id: str | None = None,
+        min_similarity: float = 0.05,
     ) -> list[SemanticSearchHit]: ...
 
 
@@ -51,6 +52,7 @@ class PgVectorMemoryAdapter(ToolAdapter):
             top_k=int(arguments.get("top_k", 10)),
             entity_types=set(arguments.get("entity_types") or []) or None,
             exclude_run_id=arguments.get("exclude_run_id"),
+            min_similarity=float(arguments.get("min_similarity", 0.05)),
         )
         return AdapterResult(
             payload={

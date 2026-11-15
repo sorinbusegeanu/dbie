@@ -46,6 +46,9 @@ class GatewayCrewAITool(BaseTool):
                 parameters = dict(arguments.get("parameters") or {})
                 parameters.setdefault("run_id", self.context.run_id)
                 arguments["parameters"] = parameters
+        if self.logical_tool is ToolName.SEMANTIC_MEMORY_SEARCH:
+            if arguments.pop("exclude_current_run", False):
+                arguments.setdefault("exclude_run_id", self.context.run_id)
         result = self.gateway.invoke(
             ToolCallEnvelope(
                 run_id=self.context.run_id,

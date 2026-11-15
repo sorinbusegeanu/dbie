@@ -2,6 +2,26 @@ active_provider: ollama
 default_profile: gpt_oss_20b_64k
 fallback_profiles:
   - ministral_3_14b_64k
+task_temperatures:
+  discovery_ideation: 0.8
+  opportunity_synthesis: 0.4
+  assumption_decomposition: 0.1
+  research_planning: 0.3
+  market_evidence: 0.1
+  competitor_research: 0.1
+  regulatory_research: 0.1
+  github_research: 0.1
+  evidence_extraction: 0.1
+  evidence_reconciliation: 0.1
+  assumption_validation: 0.1
+  financial_analysis: 0.0
+  independent_red_team: 0.2
+  productization_challenge: 0.2
+  investment_decision: 0.0
+  judge_investment_decision: 0.0
+  mvp_implementation: 0.1
+  test_fix_loop: 0.1
+  experiment_design: 0.2
 providers:
   ollama:
     base_url: http://127.0.0.1:11434

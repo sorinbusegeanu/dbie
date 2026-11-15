@@ -14,7 +14,7 @@ from pydantic import BaseModel
 from sqlalchemy.exc import SQLAlchemyError
 
 from dbie.bootstrap import build_runtime
-from dbie.config import load_settings, load_tools_config
+from dbie.config import load_readiness_policy, load_settings, load_tools_config
 from dbie.crews.catalog import CrewCatalog
 from dbie.crews.stage_runner import CrewAIStageRunner
 from dbie.domain.enums import RunStatus
@@ -27,6 +27,12 @@ from dbie.evaluation.benchmark import (
     ModelBenchmarkRunner,
     load_benchmark_cases,
     write_benchmark_report,
+)
+from dbie.evaluation.commercial_benchmark import (
+    evaluate_historical_benchmark,
+    load_historical_benchmark,
+    write_historical_report,
+    write_forecast_report,
 )
 from dbie.flows.checkpoints import JsonCheckpointStore
 from dbie.flows.idea_pipeline import IdeaPipelineFlow
@@ -197,7 +203,11 @@ def acceptance_run(
     checkpoint_store = JsonCheckpointStore(runtime.settings.run_directory)
     flow = IdeaPipelineFlow(
         state=PipelineState(run_id=run_id, mandate=mandate),
-        executor=FixtureMVPExecutor(runtime.database, runtime.settings.run_directory),
+        executor=FixtureMVPExecutor(
+            runtime.database,
+            runtime.settings.run_directory,
+            load_readiness_policy(runtime.settings),
+        ),
         checkpoint_store=checkpoint_store,
     )
     flow.kickoff()
@@ -310,6 +320,7 @@ def _live_executor(
         runner,
         stack.memory,
         config=mvp_config,
+        readiness_policy=load_readiness_policy(runtime.settings),
         configuration_hash=fingerprint,
     )
 
@@ -489,6 +500,39 @@ def benchmark_command(
             "output": str(output),
         }
     )
+
+
+@app.command("commercial-benchmark")
+def commercial_benchmark_command(
+    benchmark: Annotated[Path, typer.Option(exists=True)] = Path(
+        "benchmarks/commercial_opportunities_synthetic.json"
+    ),
+    output: Annotated[Path, typer.Option()] = Path("runs/benchmarks/commercial"),
+    k: Annotated[int, typer.Option(min=1)] = 5,
+) -> None:
+    """Evaluate versioned historical commercial decisions offline."""
+    metrics = evaluate_historical_benchmark(load_historical_benchmark(benchmark), k=k)
+    paths = write_historical_report(metrics, output)
+    _emit(
+        {
+            "benchmark_id": metrics["benchmark_id"],
+            "metrics": metrics,
+            "outputs": [str(path) for path in paths],
+        }
+    )
+
+
+@app.command("forecast-report")
+def forecast_report_command(
+    input_file: Annotated[Path, typer.Option(exists=True)] = Path("benchmarks/forecast_observations_synthetic.json"),
+    output: Annotated[Path, typer.Option()] = Path("runs/benchmarks/forecasts"),
+) -> None:
+    """Compare structured commercial forecasts with measured outcomes offline."""
+    rows = json.loads(input_file.read_text(encoding="utf-8"))
+    if not isinstance(rows, list) or not all(isinstance(row, dict) for row in rows):
+        raise typer.BadParameter("input JSON must be a list of forecast/outcome records")
+    paths = write_forecast_report(rows, output)
+    _emit({"observations": len(rows), "outputs": [str(path) for path in paths]})
 
 
 @app.command("model-probe")

@@ -51,6 +51,12 @@ from dbie.domain.enums import (
     RunStatus,
 )
 from dbie.domain.evidence import independent_lineage_count
+from dbie.domain.commercial import (
+    calculate_economics,
+    estimated_business_model_inputs,
+    grade_commercial_evidence,
+)
+from dbie.domain.decisions import ReadinessPolicy, assess_decision_readiness
 from dbie.domain.models import (
     Assumption,
     BusinessIdea,
@@ -126,6 +132,7 @@ class LiveMVPExecutor:
         memory: Any,
         *,
         config: LiveMVPConfig | None = None,
+        readiness_policy: ReadinessPolicy | None = None,
         configuration_hash: str = "live-v06",
     ) -> None:
         self.database = database
@@ -134,6 +141,7 @@ class LiveMVPExecutor:
         self.task_runner = task_runner
         self.memory = memory
         self.config = config or LiveMVPConfig()
+        self.readiness_policy = readiness_policy or ReadinessPolicy()
         self.configuration_hash = configuration_hash
         self.runs = RunRepository(database)
         self.candidates = CandidateRepository(database)
@@ -516,7 +524,13 @@ class LiveMVPExecutor:
                         "search snippets are not evidence. Use official regulatory sources "
                         "for legal claims and python_execute for deterministic economics or "
                         "technical calculations. Return exact source URLs from tool results, "
-                        "both support and contradiction, and explicit gaps. Ideas:\n"
+                        "both support and contradiction, and explicit gaps. For each claim, "
+                        "classify commercial evidence only when directly supported by the "
+                        "source as MARKET_SIGNAL, EXISTING_MARKET, CUSTOMER_VALIDATION, "
+                        "PURCHASE_INTENT, or OBSERVED_TRANSACTION; otherwise return UNKNOWN. "
+                        "Mark scope MARKET for category-wide or competitor evidence and PRODUCT "
+                        "only for evidence about this proposed product. Never treat a competitor "
+                        "or market signal as product-specific purchase evidence. Ideas:\n"
                         + json.dumps(
                             [item.model_dump(mode="json") for item in ideas.values()]
                         )
@@ -772,7 +786,29 @@ class LiveMVPExecutor:
                 [item for item in findings if item.candidate_id == candidate_id],
                 heterogeneous_review=True,
             )
+            idea = self.candidates.get(candidate_id)
+            assumptions = self.assumptions.for_idea(candidate_id)
+            evidence_by_id = {item.id: item for item in self.evidence.for_run(state.run_id)}
+            candidate_evidence = [
+                evidence_by_id[evidence_id]
+                for assumption in assumptions
+                for evidence_id in assumption.evidence_for_ids + assumption.evidence_against_ids
+                if evidence_id in evidence_by_id
+            ]
+            grades = grade_commercial_evidence([a.id for a in assumptions], candidate_evidence)
+            readiness = assess_decision_readiness(
+                idea, assumptions, grades, policy=self.readiness_policy
+            )
+            if readiness.recommendation is DecisionType.KILL:
+                decision = decision.model_copy(update={
+                    "decision": DecisionType.KILL,
+                    "reason_codes": readiness.reason_codes,
+                })
             decisions[candidate_id] = decision.model_dump(mode="json")
+            decisions[candidate_id]["readiness_assessment"] = readiness.model_dump(mode="json")
+            decisions[candidate_id]["readiness_assessment"]["pipeline_validation_decision"] = decision.decision.value
+            decisions[candidate_id]["readiness_assessment"]["pipeline_validation_reason_codes"] = decision.reason_codes
+            decisions[candidate_id]["commercial_evidence_grades"] = [item.model_dump(mode="json") for item in grades]
             if decision.decision is DecisionType.BUILD:
                 service.transition(
                     candidate_id,
@@ -823,7 +859,9 @@ class LiveMVPExecutor:
                 "Use database_query, semantic_memory_search, and python_execute for a "
                 "reproducible comparison check. Judge every supplied pair using only "
                 "normalized evidence, unresolved risk, automation, economics, and "
-                "distribution. Return a tie when evidence does not distinguish a pair. "
+                "distribution plus the deterministic decision_readiness.readiness_score "
+                "as a ranking input. That score never overrides an eligibility or "
+                "decision gate. Return a tie when evidence does not distinguish a pair. "
                 "Do not override hard gates. Pairs:\n"
                 + json.dumps(pairs)
                 + "\nCandidates:\n"
@@ -913,7 +951,11 @@ class LiveMVPExecutor:
                 "falsifying digital experiment for each candidate's highest-priority "
                 "unresolved assumption. Every protocol must preregister a metric, "
                 "threshold, sample, zero-or-bounded budget, stop condition, and locked "
-                "prediction. Do not launch, publish, contact anyone, or spend money; all "
+                "prediction. When measurable, also provide numeric structured predictions "
+                "for demand, conversion, revenue, CAC, margins, implementation cost, and "
+                "launch/first-revenue timing, plus lower/upper scenario intervals. Leave "
+                "unsupported values unknown rather than inventing them. Do not launch, "
+                "publish, contact anyone, or spend money; all "
                 "protocols require human approval. Unresolved assumptions:\n"
                 + json.dumps([item.model_dump(mode="json") for item in unresolved])
             ),
@@ -952,6 +994,8 @@ class LiveMVPExecutor:
                     experiment_id=experiment.id,
                     predicted_value=draft.predicted_value,
                     rationale=draft.prediction_rationale,
+                    predicted_metrics=draft.predicted_metrics,
+                    scenario_intervals=draft.scenario_intervals,
                 )
             )
             experiments.append(experiment)
@@ -1097,9 +1141,27 @@ class LiveMVPExecutor:
             idea = self.candidates.get(candidate_id)
             narrative = narratives[candidate_id]
             assumptions = self.assumptions.for_idea(candidate_id)
+            candidate_evidence = [
+                evidence_by_id[evidence_id]
+                for assumption in assumptions
+                for evidence_id in assumption.evidence_for_ids + assumption.evidence_against_ids
+                if evidence_id in evidence_by_id
+            ]
+            grades = grade_commercial_evidence([item.id for item in assumptions], candidate_evidence)
+            economics = calculate_economics(
+                estimated_business_model_inputs(
+                    narrative.monthly_price,
+                    narrative.variable_cost_per_customer,
+                )
+            )
+            readiness = assess_decision_readiness(idea, assumptions, grades, economics, policy=self.readiness_policy)
             decision_value = decisions.get(candidate_id, {}).get(
                 "decision", DecisionType.MORE_EVIDENCE.value
             )
+            readiness_payload = readiness.model_dump(mode="json") | {
+                "pipeline_validation_decision": decision_value,
+                "pipeline_validation_reason_codes": decisions.get(candidate_id, {}).get("reason_codes", []),
+            }
             dossier = Dossier(
                 run_id=state.run_id,
                 candidate_id=candidate_id,
@@ -1131,15 +1193,32 @@ class LiveMVPExecutor:
                     )
                     for item in assumptions
                 ],
-                unknowns=narrative.unknowns,
+                unknowns=sorted(set(narrative.unknowns) | {reason for item in economics.scenarios.values() for reason in item.unknowns.values()}),
                 competitors=narrative.competitors,
                 business_model_variants=narrative.business_model_variants,
                 economics={
                     "gross_margin_base": _gross_margin(
                         narrative.monthly_price,
                         narrative.variable_cost_per_customer,
-                    )
+                    ),
+                    "currency": economics.currency,
+                    "period_months": economics.period_months,
+                    "assumptions": economics.assumptions.model_dump(mode="json"),
+                    "scenarios": {key: value.model_dump(mode="json") for key, value in economics.scenarios.items()},
                 },
+                readiness=readiness_payload,
+                opportunity_investment_thesis=idea.one_sentence_thesis,
+                critical_assumptions=[item.model_dump(mode="json") for item in assumptions if item.criticality.value == "FATAL"],
+                recommended_experiment={"description": narrative.recommended_experiments[0] if narrative.recommended_experiments else "Validate willingness to pay", "estimated_cost": {"value": None, "basis": "UNKNOWN", "reason": "No experiment budget is recorded."}, "success_criteria": "Preregister a measurable product-specific purchase-intent threshold."},
+                addressable_market={"value": None, "basis": "UNKNOWN", "reason": "No sourced market sizing is recorded."},
+                reachable_market={"value": None, "basis": "UNKNOWN", "reason": "No distribution reach or serviceable-market estimate is recorded."},
+                willingness_to_pay_evidence=[
+                    item.id for item in candidate_evidence
+                    if any(a.id in item.supported_assumption_ids and a.category.value == "WTP" for a in assumptions)
+                    and item.commercial_scope.value == "PRODUCT"
+                    and item.commercial_classification.value in {"CUSTOMER_VALIDATION", "PURCHASE_INTENT", "OBSERVED_TRANSACTION"}
+                ],
+                commercial_evidence_grades=[item.model_dump(mode="json") for item in grades],
                 automation_ratio=(
                     idea.autonomous_scalability.target_automation_ratio
                     if idea.autonomous_scalability
@@ -1160,12 +1239,8 @@ class LiveMVPExecutor:
                     | {"portfolio_size": len(state.finalist_ids)}
                 ),
                 recommended_experiments=narrative.recommended_experiments,
-                decision=DecisionType(decision_value),
-                reason_codes=list(
-                    decisions.get(candidate_id, {}).get(
-                        "reason_codes", ["INSUFFICIENT_EVIDENCE"]
-                    )
-                ),
+                decision=readiness.recommendation,
+                reason_codes=readiness.reason_codes,
             )
             markdown, structured = write_dossier(
                 dossier,
@@ -1248,37 +1323,32 @@ class LiveMVPExecutor:
         return path
 
     def _normalized_candidate_context(self, candidate_ids: list[str]) -> list[dict[str, Any]]:
-        evidence_by_assumption = {}
+        context = []
         for candidate_id in candidate_ids:
-            for assumption in self.assumptions.for_idea(candidate_id):
-                evidence_by_assumption[assumption.id] = [
-                    item.model_dump(mode="json")
-                    for item in (
-                        [self.evidence.get(identifier) for identifier in assumption.evidence_for_ids]
-                        + [
-                            self.evidence.get(identifier)
-                            for identifier in assumption.evidence_against_ids
-                        ]
-                    )
+            assumptions = self.assumptions.for_idea(candidate_id)
+            evidence_by_assumption = {}
+            candidate_evidence = []
+            for assumption in assumptions:
+                evidence = [
+                    self.evidence.get(identifier)
+                    for identifier in assumption.evidence_for_ids + assumption.evidence_against_ids
                 ]
-        return [
-            {
+                candidate_evidence.extend(evidence)
+                evidence_by_assumption[assumption.id] = [item.model_dump(mode="json") for item in evidence]
+            grades = grade_commercial_evidence([item.id for item in assumptions], candidate_evidence)
+            economics = calculate_economics(estimated_business_model_inputs(None, None))
+            readiness = assess_decision_readiness(
+                self.candidates.get(candidate_id), assumptions, grades, economics,
+                policy=self.readiness_policy,
+            )
+            context.append({
                 "idea": self.candidates.get(candidate_id).model_dump(mode="json"),
-                "assumptions": [
-                    item.model_dump(mode="json")
-                    for item in self.assumptions.for_idea(candidate_id)
-                ],
-                "evidence_by_assumption": {
-                    assumption_id: items
-                    for assumption_id, items in evidence_by_assumption.items()
-                    if any(
-                        item.id == assumption_id
-                        for item in self.assumptions.for_idea(candidate_id)
-                    )
-                },
-            }
-            for candidate_id in candidate_ids
-        ]
+                "assumptions": [item.model_dump(mode="json") for item in assumptions],
+                "evidence_by_assumption": evidence_by_assumption,
+                "commercial_evidence_grades": [item.model_dump(mode="json") for item in grades],
+                "decision_readiness": readiness.model_dump(mode="json"),
+            })
+        return context
 
     def _source_urls_for_task(self, task_id: str) -> set[str]:
         return set(self._sources_for_task(task_id))
@@ -1353,6 +1423,9 @@ class LiveMVPExecutor:
             freshness_score=claim.freshness_score,
             lineage_group_id=_lineage_id(source_url, source.source_identifier),
             content_hash=content_hash,
+            commercial_classification=claim.commercial_classification,
+            commercial_scope=claim.commercial_scope,
+            supported_assumption_ids=[claim.assumption_id],
         )
 
     @staticmethod

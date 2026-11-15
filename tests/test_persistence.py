@@ -131,6 +131,8 @@ def test_experiment_protocol_prediction_and_outcome_are_separate_records(
             experiment_id=experiment.id,
             predicted_value="12%",
             rationale="The research evidence supports bounded buyer urgency.",
+            predicted_metrics={"conversion_rate": 0.12, "revenue": 12000},
+            scenario_intervals={"conversion_rate": {"lower": 0.08, "upper": 0.16}},
         )
     )
     outcome = ExperimentOutcomeRepository(database).create(
@@ -141,6 +143,9 @@ def test_experiment_protocol_prediction_and_outcome_are_separate_records(
             sample_size=100,
             raw_artifact_refs=["artifact://events-1"],
             interpretation="The preregistered threshold was not met.",
+            measured_at="2026-01-15T00:00:00Z",
+            observed_metrics={"conversion_rate": 0.08, "revenue": 8000},
+            evidence_source_ids=["artifact://events-1"],
         )
     )
 
@@ -149,3 +154,5 @@ def test_experiment_protocol_prediction_and_outcome_are_separate_records(
     assert ExperimentRepository(database).for_run("run-1") == [experiment]
     assert ExperimentPredictionRepository(database).for_run("run-1") == [prediction]
     assert ExperimentOutcomeRepository(database).for_run("run-1") == [outcome]
+    assert ExperimentPredictionRepository(database).for_run("run-1")[0].predicted_metrics.conversion_rate == 0.12
+    assert ExperimentOutcomeRepository(database).for_run("run-1")[0].evidence_source_ids == ["artifact://events-1"]

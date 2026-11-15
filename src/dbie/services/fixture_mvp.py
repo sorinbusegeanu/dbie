@@ -16,6 +16,12 @@ from dbie.domain.enums import (
     EvidenceType,
     RunStatus,
 )
+from dbie.domain.commercial import (
+    calculate_economics,
+    estimated_business_model_inputs,
+    grade_commercial_evidence,
+)
+from dbie.domain.decisions import ReadinessPolicy, assess_decision_readiness
 from dbie.domain.models import (
     AutonomousScalability,
     BusinessIdea,
@@ -49,9 +55,10 @@ from dbie.services.validation import RedTeamFinding, validation_decision
 class FixtureMVPExecutor:
     """Exercises every deterministic MVP stage without network/model calls."""
 
-    def __init__(self, database: Database, output_directory: Path) -> None:
+    def __init__(self, database: Database, output_directory: Path, readiness_policy: ReadinessPolicy | None = None) -> None:
         self.database = database
         self.output_directory = output_directory
+        self.readiness_policy = readiness_policy or ReadinessPolicy()
         self.runs = RunRepository(database)
         self.candidates = CandidateRepository(database)
         self.assumptions = AssumptionRepository(database)
@@ -189,7 +196,28 @@ class FixtureMVPExecutor:
                 [item for item in findings if item.candidate_id == identifier],
                 heterogeneous_review=True,
             )
+            idea = self.candidates.get(identifier)
+            assumptions = self.assumptions.for_idea(identifier)
+            evidence = [
+                item for assumption in assumptions
+                for evidence_id in assumption.evidence_for_ids
+                if (item := self.evidence.get(evidence_id)) is not None
+            ]
+            grades = grade_commercial_evidence([a.id for a in assumptions], evidence)
+            economics = calculate_economics(estimated_business_model_inputs(49.0, 8.0))
+            readiness = assess_decision_readiness(
+                idea, assumptions, grades, economics, policy=self.readiness_policy
+            )
+            if readiness.recommendation is DecisionType.KILL:
+                decision = decision.model_copy(update={
+                    "decision": DecisionType.KILL,
+                    "reason_codes": readiness.reason_codes,
+                })
             decisions[identifier] = decision.model_dump(mode="json")
+            decisions[identifier]["readiness_assessment"] = readiness.model_dump(mode="json")
+            decisions[identifier]["readiness_assessment"]["pipeline_validation_decision"] = decision.decision.value
+            decisions[identifier]["readiness_assessment"]["pipeline_validation_reason_codes"] = decision.reason_codes
+            decisions[identifier]["commercial_evidence_grades"] = [item.model_dump(mode="json") for item in grades]
             if decision.decision is DecisionType.BUILD:
                 CandidateService(self.candidates).transition(
                     identifier,
@@ -266,6 +294,13 @@ class FixtureMVPExecutor:
         for identifier in state.finalist_ids:
             idea = self.candidates.get(identifier)
             assumptions = self.assumptions.for_idea(identifier)
+            candidate_evidence = [
+                item for assumption in assumptions
+                for item in [evidence_by_id[eid] for eid in assumption.evidence_for_ids if eid in evidence_by_id]
+            ]
+            grades = grade_commercial_evidence([item.id for item in assumptions], candidate_evidence)
+            economics = calculate_economics(estimated_business_model_inputs(49.0, 8.0))
+            readiness = assess_decision_readiness(idea, assumptions, grades, economics, policy=self.readiness_policy)
             dossier = Dossier(
                 run_id=state.run_id,
                 candidate_id=identifier,
@@ -289,10 +324,29 @@ class FixtureMVPExecutor:
                     )
                     for item in assumptions
                 ],
-                unknowns=[],
+                unknowns=sorted({reason for item in economics.scenarios.values() for reason in item.unknowns.values()}),
                 competitors=["Manual workflow", "Horizontal GRC suite"],
                 business_model_variants=["Subscription", "Usage-based API"],
-                economics={"gross_margin_base": 0.8},
+                economics={
+                    "gross_margin_base": 0.8,
+                    "currency": economics.currency,
+                    "period_months": economics.period_months,
+                    "assumptions": economics.assumptions.model_dump(mode="json"),
+                    "scenarios": {key: value.model_dump(mode="json") for key, value in economics.scenarios.items()},
+                },
+                readiness=(readiness.model_dump(mode="json") | {"pipeline_validation_decision": "BUILD", "pipeline_validation_reason_codes": ["HARD_GATES_PASSED"]}),
+                opportunity_investment_thesis=idea.one_sentence_thesis,
+                critical_assumptions=[item.model_dump(mode="json") for item in assumptions if item.criticality.value == "FATAL"],
+                recommended_experiment={"description": "Preregistered price-choice test", "estimated_cost": {"value": 0, "basis": "ESTIMATE", "currency": "USD"}, "success_criteria": "A preregistered share of qualified buyers selects a paid tier."},
+                addressable_market={"value": None, "basis": "UNKNOWN", "reason": "No sourced market sizing is recorded."},
+                reachable_market={"value": None, "basis": "UNKNOWN", "reason": "No distribution reach or serviceable-market estimate is recorded."},
+                willingness_to_pay_evidence=[
+                    item.id for item in candidate_evidence
+                    if any(a.id in item.supported_assumption_ids and a.category.value == "WTP" for a in assumptions)
+                    and item.commercial_scope.value == "PRODUCT"
+                    and item.commercial_classification.value in {"CUSTOMER_VALIDATION", "PURCHASE_INTENT", "OBSERVED_TRANSACTION"}
+                ],
+                commercial_evidence_grades=[item.model_dump(mode="json") for item in grades],
                 automation_ratio=idea.autonomous_scalability.target_automation_ratio,
                 human_minutes_per_customer_at_10x=idea.autonomous_scalability.human_minutes_per_customer_at_10x,
                 red_team_findings=["Resolved market-skeptic challenge"],
@@ -301,8 +355,8 @@ class FixtureMVPExecutor:
                     | {"portfolio_size": len(state.finalist_ids)}
                 ),
                 recommended_experiments=["Preregistered price-choice test"],
-                decision=DecisionType.BUILD,
-                reason_codes=["HARD_GATES_PASSED"],
+                decision=readiness.recommendation,
+                reason_codes=readiness.reason_codes,
             )
             markdown, structured = write_dossier(
                 dossier, self.output_directory / state.run_id / "deliverables"
@@ -520,4 +574,5 @@ class FixtureMVPExecutor:
             freshness_score=1.0,
             lineage_group_id=f"{assumption_id}-lineage-{index}",
             content_hash=sha256(source.encode()).hexdigest(),
+            supported_assumption_ids=[assumption_id],
         )

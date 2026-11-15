@@ -14,9 +14,11 @@ from dbie.domain.enums import (
     AssumptionCriticality,
     AssumptionStatus,
     CandidateState,
+    CommercialEvidenceClass,
     DecisionType,
     EvidenceDirection,
     EvidenceTier,
+    EvidenceScope,
     EvidenceType,
     RunStatus,
 )
@@ -127,6 +129,9 @@ class EvidenceItem(CanonicalRecord):
     freshness_score: float = Field(ge=0, le=1)
     lineage_group_id: str
     content_hash: str = Field(min_length=16)
+    commercial_classification: CommercialEvidenceClass = CommercialEvidenceClass.UNKNOWN
+    commercial_scope: EvidenceScope = EvidenceScope.UNKNOWN
+    supported_assumption_ids: list[str] = Field(default_factory=list)
 
 
 class Competitor(CanonicalRecord):
@@ -201,6 +206,55 @@ class Experiment(CanonicalRecord):
     approval_status: ApprovalStatus = ApprovalStatus.REQUIRED
 
 
+class CommercialForecastMetrics(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True, allow_inf_nan=False)
+
+    currency: str = "USD"
+    period_months: int = Field(default=1, gt=0)
+    demand: float | None = Field(default=None, ge=0)
+    conversion_rate: float | None = Field(default=None, ge=0, le=1)
+    revenue: float | None = Field(default=None, ge=0)
+    cac: float | None = Field(default=None, ge=0)
+    gross_margin: float | None = Field(default=None, le=1)
+    contribution_margin: float | None = Field(default=None, le=1)
+    implementation_cost: float | None = Field(default=None, ge=0)
+    time_to_launch_months: float | None = Field(default=None, ge=0)
+    time_to_first_revenue_months: float | None = Field(default=None, ge=0)
+
+    @model_validator(mode="after")
+    def valid_currency(self) -> CommercialForecastMetrics:
+        if len(self.currency) != 3 or not self.currency.isalpha() or self.currency != self.currency.upper():
+            raise ValueError("forecast currency must be a three-letter uppercase code")
+        return self
+
+
+class ForecastInterval(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True, allow_inf_nan=False)
+
+    lower: float
+    upper: float
+
+    @model_validator(mode="after")
+    def ordered_bounds(self) -> ForecastInterval:
+        if self.lower > self.upper:
+            raise ValueError("forecast interval lower bound exceeds upper bound")
+        return self
+
+
+class ForecastIntervals(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    demand: ForecastInterval | None = None
+    conversion_rate: ForecastInterval | None = None
+    revenue: ForecastInterval | None = None
+    cac: ForecastInterval | None = None
+    gross_margin: ForecastInterval | None = None
+    contribution_margin: ForecastInterval | None = None
+    implementation_cost: ForecastInterval | None = None
+    time_to_launch_months: ForecastInterval | None = None
+    time_to_first_revenue_months: ForecastInterval | None = None
+
+
 class ExperimentPrediction(CanonicalRecord):
     model_config = ConfigDict(extra="forbid", validate_assignment=True, frozen=True)
 
@@ -208,6 +262,8 @@ class ExperimentPrediction(CanonicalRecord):
     predicted_value: str
     rationale: str
     locked_at: datetime | None = None
+    predicted_metrics: CommercialForecastMetrics = Field(default_factory=CommercialForecastMetrics)
+    scenario_intervals: ForecastIntervals = Field(default_factory=ForecastIntervals)
 
 
 class ExperimentOutcome(CanonicalRecord):
@@ -216,6 +272,20 @@ class ExperimentOutcome(CanonicalRecord):
     sample_size: int = Field(ge=0)
     raw_artifact_refs: list[str] = Field(default_factory=list)
     interpretation: str
+    measured_at: datetime | None = None
+    observed_metrics: CommercialForecastMetrics = Field(default_factory=CommercialForecastMetrics)
+    evidence_source_ids: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def measured_commercial_outcomes_have_provenance(self) -> ExperimentOutcome:
+        observed = self.observed_metrics.model_dump(exclude={"currency", "period_months"}, exclude_none=True)
+        if observed and self.measured_at is None:
+            raise ValueError("commercial observations require measured_at")
+        if observed and self.measured_at is not None and self.measured_at.utcoffset() is None:
+            raise ValueError("commercial observation measurement time must include a timezone")
+        if observed and not self.evidence_source_ids:
+            raise ValueError("commercial observations require evidence source references")
+        return self
 
 
 class CandidateDecision(CanonicalRecord):

@@ -1,0 +1,1049 @@
+{
+  "run_id": "61ff3290-36be-4c16-8206-9da3a4dd65e6",
+  "candidate_id": "48fe0a67-8a9b-4954-a00c-c99d3463af2c",
+  "title": "Regulatory Evidence Copilot",
+  "thesis": "Automate costly evidence review for regulated teams.",
+  "description": "Regulatory Evidence Copilot is a software opportunity for Regulated mid-market companies that need to translate changing rules and policies into reliable operational work. The product would ingest official, machine-readable material, identify relevant obligations, map them to a customer's workflow, and produce traceable recommendations for expert review. Its primary buyer is the Chief compliance officer, while Compliance analyst teams use the service through a self-service application and API. The value comes from reducing repetitive evidence review, shortening response cycles, and preserving an auditable source trail. Subscription and usage-based pricing could support the delivery model. The system targets high automation and low marginal human effort, with people involved mainly for consequential exceptions. Initial validation should test buyer urgency, output accuracy, integration effort, repeat usage, and willingness to pay before committing resources to a production build. The proposed service remains fully digital in acquisition, delivery, support, payment, operation, and geographic scaling.",
+  "why_now": "Official rules are increasingly machine-readable.",
+  "customer": "Regulated mid-market companies",
+  "buyer": "Chief compliance officer",
+  "assumptions": [
+    {
+      "statement": "The target problem exists and is severe",
+      "status": "RESEARCH_SUPPORTED",
+      "evidence_for": [
+        {
+          "title": "Independent publisher 1 — Measured primary evidence",
+          "summary": "Independent fixture evidence supports the bounded claim.",
+          "url": null,
+          "publisher": "Independent publisher 1",
+          "tier": "PRIMARY"
+        },
+        {
+          "title": "Independent publisher 2 — Measured primary evidence",
+          "summary": "Independent fixture evidence supports the bounded claim.",
+          "url": null,
+          "publisher": "Independent publisher 2",
+          "tier": "PRIMARY"
+        }
+      ],
+      "evidence_against": [],
+      "independent_lineages": 2
+    },
+    {
+      "statement": "An identifiable buyer owns the problem",
+      "status": "RESEARCH_SUPPORTED",
+      "evidence_for": [
+        {
+          "title": "Independent publisher 1 — Measured primary evidence",
+          "summary": "Independent fixture evidence supports the bounded claim.",
+          "url": null,
+          "publisher": "Independent publisher 1",
+          "tier": "PRIMARY"
+        },
+        {
+          "title": "Independent publisher 2 — Measured primary evidence",
+          "summary": "Independent fixture evidence supports the bounded claim.",
+          "url": null,
+          "publisher": "Independent publisher 2",
+          "tier": "PRIMARY"
+        }
+      ],
+      "evidence_against": [],
+      "independent_lineages": 2
+    },
+    {
+      "statement": "The buyer is willing to pay",
+      "status": "RESEARCH_SUPPORTED",
+      "evidence_for": [
+        {
+          "title": "Independent publisher 1 — Measured primary evidence",
+          "summary": "Independent fixture evidence supports the bounded claim.",
+          "url": null,
+          "publisher": "Independent publisher 1",
+          "tier": "PRIMARY"
+        },
+        {
+          "title": "Independent publisher 2 — Measured primary evidence",
+          "summary": "Independent fixture evidence supports the bounded claim.",
+          "url": null,
+          "publisher": "Independent publisher 2",
+          "tier": "PRIMARY"
+        }
+      ],
+      "evidence_against": [],
+      "independent_lineages": 2
+    },
+    {
+      "statement": "The buyer is reachable through a repeatable digital channel",
+      "status": "RESEARCH_SUPPORTED",
+      "evidence_for": [
+        {
+          "title": "Independent publisher 1 — Measured primary evidence",
+          "summary": "Independent fixture evidence supports the bounded claim.",
+          "url": null,
+          "publisher": "Independent publisher 1",
+          "tier": "PRIMARY"
+        },
+        {
+          "title": "Independent publisher 2 — Measured primary evidence",
+          "summary": "Independent fixture evidence supports the bounded claim.",
+          "url": null,
+          "publisher": "Independent publisher 2",
+          "tier": "PRIMARY"
+        }
+      ],
+      "evidence_against": [],
+      "independent_lineages": 2
+    },
+    {
+      "statement": "The product is technically feasible",
+      "status": "RESEARCH_SUPPORTED",
+      "evidence_for": [
+        {
+          "title": "Independent publisher 1 — Measured primary evidence",
+          "summary": "Independent fixture evidence supports the bounded claim.",
+          "url": null,
+          "publisher": "Independent publisher 1",
+          "tier": "PRIMARY"
+        },
+        {
+          "title": "Independent publisher 2 — Measured primary evidence",
+          "summary": "Independent fixture evidence supports the bounded claim.",
+          "url": null,
+          "publisher": "Independent publisher 2",
+          "tier": "PRIMARY"
+        }
+      ],
+      "evidence_against": [],
+      "independent_lineages": 2
+    },
+    {
+      "statement": "At least 90% of delivery can be automated",
+      "status": "RESEARCH_SUPPORTED",
+      "evidence_for": [
+        {
+          "title": "Independent publisher 1 — Measured primary evidence",
+          "summary": "Independent fixture evidence supports the bounded claim.",
+          "url": null,
+          "publisher": "Independent publisher 1",
+          "tier": "PRIMARY"
+        },
+        {
+          "title": "Independent publisher 2 — Measured primary evidence",
+          "summary": "Independent fixture evidence supports the bounded claim.",
+          "url": null,
+          "publisher": "Independent publisher 2",
+          "tier": "PRIMARY"
+        }
+      ],
+      "evidence_against": [],
+      "independent_lineages": 2
+    },
+    {
+      "statement": "Marginal human burden stays low at 10x scale",
+      "status": "RESEARCH_SUPPORTED",
+      "evidence_for": [
+        {
+          "title": "Independent publisher 1 — Measured primary evidence",
+          "summary": "Independent fixture evidence supports the bounded claim.",
+          "url": null,
+          "publisher": "Independent publisher 1",
+          "tier": "PRIMARY"
+        },
+        {
+          "title": "Independent publisher 2 — Measured primary evidence",
+          "summary": "Independent fixture evidence supports the bounded claim.",
+          "url": null,
+          "publisher": "Independent publisher 2",
+          "tier": "PRIMARY"
+        }
+      ],
+      "evidence_against": [],
+      "independent_lineages": 2
+    },
+    {
+      "statement": "Unit economics can sustain the delivery model",
+      "status": "RESEARCH_SUPPORTED",
+      "evidence_for": [
+        {
+          "title": "Independent publisher 1 — Measured primary evidence",
+          "summary": "Independent fixture evidence supports the bounded claim.",
+          "url": null,
+          "publisher": "Independent publisher 1",
+          "tier": "PRIMARY"
+        },
+        {
+          "title": "Independent publisher 2 — Measured primary evidence",
+          "summary": "Independent fixture evidence supports the bounded claim.",
+          "url": null,
+          "publisher": "Independent publisher 2",
+          "tier": "PRIMARY"
+        }
+      ],
+      "evidence_against": [],
+      "independent_lineages": 2
+    },
+    {
+      "statement": "Substitutes do not erase the value proposition",
+      "status": "RESEARCH_SUPPORTED",
+      "evidence_for": [
+        {
+          "title": "Independent publisher 1 — Measured primary evidence",
+          "summary": "Independent fixture evidence supports the bounded claim.",
+          "url": null,
+          "publisher": "Independent publisher 1",
+          "tier": "PRIMARY"
+        },
+        {
+          "title": "Independent publisher 2 — Measured primary evidence",
+          "summary": "Independent fixture evidence supports the bounded claim.",
+          "url": null,
+          "publisher": "Independent publisher 2",
+          "tier": "PRIMARY"
+        }
+      ],
+      "evidence_against": [],
+      "independent_lineages": 2
+    },
+    {
+      "statement": "The product can retain a defensible advantage",
+      "status": "RESEARCH_SUPPORTED",
+      "evidence_for": [
+        {
+          "title": "Independent publisher 1 — Measured primary evidence",
+          "summary": "Independent fixture evidence supports the bounded claim.",
+          "url": null,
+          "publisher": "Independent publisher 1",
+          "tier": "PRIMARY"
+        },
+        {
+          "title": "Independent publisher 2 — Measured primary evidence",
+          "summary": "Independent fixture evidence supports the bounded claim.",
+          "url": null,
+          "publisher": "Independent publisher 2",
+          "tier": "PRIMARY"
+        }
+      ],
+      "evidence_against": [],
+      "independent_lineages": 2
+    },
+    {
+      "statement": "The product can operate compliantly",
+      "status": "RESEARCH_SUPPORTED",
+      "evidence_for": [
+        {
+          "title": "Independent publisher 1 — Measured primary evidence",
+          "summary": "Independent fixture evidence supports the bounded claim.",
+          "url": null,
+          "publisher": "Independent publisher 1",
+          "tier": "PRIMARY"
+        },
+        {
+          "title": "Independent publisher 2 — Measured primary evidence",
+          "summary": "Independent fixture evidence supports the bounded claim.",
+          "url": null,
+          "publisher": "Independent publisher 2",
+          "tier": "PRIMARY"
+        }
+      ],
+      "evidence_against": [],
+      "independent_lineages": 2
+    },
+    {
+      "statement": "A verifiable why-now catalyst exists",
+      "status": "RESEARCH_SUPPORTED",
+      "evidence_for": [
+        {
+          "title": "Independent publisher 1 — Measured primary evidence",
+          "summary": "Independent fixture evidence supports the bounded claim.",
+          "url": null,
+          "publisher": "Independent publisher 1",
+          "tier": "PRIMARY"
+        },
+        {
+          "title": "Independent publisher 2 — Measured primary evidence",
+          "summary": "Independent fixture evidence supports the bounded claim.",
+          "url": null,
+          "publisher": "Independent publisher 2",
+          "tier": "PRIMARY"
+        }
+      ],
+      "evidence_against": [],
+      "independent_lineages": 2
+    }
+  ],
+  "unknowns": [
+    "Acquisition spend and acquired customer count are required.",
+    "Acquisition spend was not supplied.",
+    "Conversion rate was not supplied.",
+    "Customer lifetime assumption was not supplied.",
+    "Fixed costs and price plus contribution margin or variable cost are required.",
+    "Fixed operating costs were not supplied.",
+    "Initial investment requirement was not supplied.",
+    "Investment, acquisition spend, and projected operating surplus are required.",
+    "Launch timeline and first revenue date were not supplied.",
+    "Monthly price, contribution margin, and lifetime are required.",
+    "Monthly qualified leads were not supplied.",
+    "New customer growth or retention is unknown.",
+    "Qualified leads and conversion rate are both required."
+  ],
+  "competitors": [
+    "Manual workflow",
+    "Horizontal GRC suite"
+  ],
+  "business_model_variants": [
+    "Subscription",
+    "Usage-based API"
+  ],
+  "economics": {
+    "gross_margin_base": 0.8,
+    "currency": "USD",
+    "period_months": 12,
+    "assumptions": {
+      "currency": "USD",
+      "period_months": 12,
+      "customers_at_start": {
+        "value": 0.0,
+        "basis": "ESTIMATE",
+        "evidence_ids": [],
+        "lower": null,
+        "upper": null,
+        "reason_unknown": null,
+        "note": "Scenario starts from zero customers."
+      },
+      "new_customers_per_month": {
+        "value": null,
+        "basis": "UNKNOWN",
+        "evidence_ids": [],
+        "lower": null,
+        "upper": null,
+        "reason_unknown": "Monthly qualified leads were not supplied.",
+        "note": null
+      },
+      "monthly_price": {
+        "value": 49.0,
+        "basis": "ESTIMATE",
+        "evidence_ids": [],
+        "lower": null,
+        "upper": null,
+        "reason_unknown": null,
+        "note": "Business-model narrative estimate; unvalidated until tested with buyers."
+      },
+      "monthly_conversion_rate": {
+        "value": null,
+        "basis": "UNKNOWN",
+        "evidence_ids": [],
+        "lower": null,
+        "upper": null,
+        "reason_unknown": "Conversion rate was not supplied.",
+        "note": null
+      },
+      "monthly_retention_rate": {
+        "value": 0.95,
+        "basis": "ESTIMATE",
+        "evidence_ids": [],
+        "lower": null,
+        "upper": null,
+        "reason_unknown": null,
+        "note": "Illustrative monthly retention assumption; replace with cohort observations."
+      },
+      "contribution_margin": {
+        "value": 0.8367346938775511,
+        "basis": "ESTIMATE",
+        "evidence_ids": [],
+        "lower": null,
+        "upper": null,
+        "reason_unknown": null,
+        "note": "Calculated from estimated price and variable cost per customer."
+      },
+      "gross_margin": {
+        "value": 0.8367346938775511,
+        "basis": "ESTIMATE",
+        "evidence_ids": [],
+        "lower": null,
+        "upper": null,
+        "reason_unknown": null,
+        "note": "Calculated from estimated price and variable cost per customer."
+      },
+      "fixed_cost_per_month": {
+        "value": null,
+        "basis": "UNKNOWN",
+        "evidence_ids": [],
+        "lower": null,
+        "upper": null,
+        "reason_unknown": "Fixed operating costs were not supplied.",
+        "note": null
+      },
+      "variable_cost_per_customer": {
+        "value": 8.0,
+        "basis": "ESTIMATE",
+        "evidence_ids": [],
+        "lower": null,
+        "upper": null,
+        "reason_unknown": null,
+        "note": "Business-model narrative estimate; unvalidated until measured."
+      },
+      "acquisition_spend_per_month": {
+        "value": null,
+        "basis": "UNKNOWN",
+        "evidence_ids": [],
+        "lower": null,
+        "upper": null,
+        "reason_unknown": "Acquisition spend was not supplied.",
+        "note": null
+      },
+      "initial_investment": {
+        "value": null,
+        "basis": "UNKNOWN",
+        "evidence_ids": [],
+        "lower": null,
+        "upper": null,
+        "reason_unknown": "Initial investment requirement was not supplied.",
+        "note": null
+      },
+      "months_to_first_revenue": {
+        "value": null,
+        "basis": "UNKNOWN",
+        "evidence_ids": [],
+        "lower": null,
+        "upper": null,
+        "reason_unknown": "Launch timeline and first revenue date were not supplied.",
+        "note": null
+      },
+      "customer_lifetime_months": {
+        "value": null,
+        "basis": "UNKNOWN",
+        "evidence_ids": [],
+        "lower": null,
+        "upper": null,
+        "reason_unknown": "Customer lifetime assumption was not supplied.",
+        "note": null
+      }
+    },
+    "scenarios": {
+      "pessimistic": {
+        "name": "pessimistic",
+        "ending_customers": null,
+        "revenue": null,
+        "cac": null,
+        "ltv": null,
+        "gross_margin": 0.7278911564625851,
+        "contribution_margin": 0.7278911564625851,
+        "break_even_customers": null,
+        "break_even_revenue": null,
+        "initial_investment": null,
+        "payback_months": null,
+        "first_revenue_month": null,
+        "scenario_adjustments": {
+          "customers_at_start": "estimated_sensitivity_x0.75",
+          "monthly_price": "estimated_sensitivity_x0.75",
+          "monthly_retention_rate": "estimated_sensitivity_x0.75",
+          "contribution_margin": "derived_from_price_and_variable_cost",
+          "gross_margin": "derived_from_price_and_variable_cost",
+          "variable_cost_per_customer": "estimated_sensitivity_x1.25"
+        },
+        "unknowns": {
+          "qualified_leads_per_month": "Monthly qualified leads were not supplied.",
+          "monthly_conversion_rate": "Conversion rate was not supplied.",
+          "fixed_cost_per_month": "Fixed operating costs were not supplied.",
+          "acquisition_spend_per_month": "Acquisition spend was not supplied.",
+          "initial_investment": "Initial investment requirement was not supplied.",
+          "months_to_first_revenue": "Launch timeline and first revenue date were not supplied.",
+          "customer_lifetime_months": "Customer lifetime assumption was not supplied.",
+          "new_customers_per_month": "Qualified leads and conversion rate are both required.",
+          "revenue": "New customer growth or retention is unknown.",
+          "ltv": "Monthly price, contribution margin, and lifetime are required.",
+          "cac": "Acquisition spend and acquired customer count are required.",
+          "break_even_customers": "Fixed costs and price plus contribution margin or variable cost are required.",
+          "payback_months": "Investment, acquisition spend, and projected operating surplus are required."
+        }
+      },
+      "base": {
+        "name": "base",
+        "ending_customers": null,
+        "revenue": null,
+        "cac": null,
+        "ltv": null,
+        "gross_margin": 0.8367346938775511,
+        "contribution_margin": 0.8367346938775511,
+        "break_even_customers": null,
+        "break_even_revenue": null,
+        "initial_investment": null,
+        "payback_months": null,
+        "first_revenue_month": null,
+        "scenario_adjustments": {
+          "gross_margin": "derived_from_price_and_variable_cost",
+          "contribution_margin": "derived_from_price_and_variable_cost"
+        },
+        "unknowns": {
+          "qualified_leads_per_month": "Monthly qualified leads were not supplied.",
+          "monthly_conversion_rate": "Conversion rate was not supplied.",
+          "fixed_cost_per_month": "Fixed operating costs were not supplied.",
+          "acquisition_spend_per_month": "Acquisition spend was not supplied.",
+          "initial_investment": "Initial investment requirement was not supplied.",
+          "months_to_first_revenue": "Launch timeline and first revenue date were not supplied.",
+          "customer_lifetime_months": "Customer lifetime assumption was not supplied.",
+          "new_customers_per_month": "Qualified leads and conversion rate are both required.",
+          "revenue": "New customer growth or retention is unknown.",
+          "ltv": "Monthly price, contribution margin, and lifetime are required.",
+          "cac": "Acquisition spend and acquired customer count are required.",
+          "break_even_customers": "Fixed costs and price plus contribution margin or variable cost are required.",
+          "payback_months": "Investment, acquisition spend, and projected operating surplus are required."
+        }
+      },
+      "optimistic": {
+        "name": "optimistic",
+        "ending_customers": null,
+        "revenue": null,
+        "cac": null,
+        "ltv": null,
+        "gross_margin": 0.9020408163265307,
+        "contribution_margin": 0.9020408163265307,
+        "break_even_customers": null,
+        "break_even_revenue": null,
+        "initial_investment": null,
+        "payback_months": null,
+        "first_revenue_month": null,
+        "scenario_adjustments": {
+          "customers_at_start": "estimated_sensitivity_x1.25",
+          "monthly_price": "estimated_sensitivity_x1.25",
+          "monthly_retention_rate": "estimated_sensitivity_x1.25",
+          "contribution_margin": "derived_from_price_and_variable_cost",
+          "gross_margin": "derived_from_price_and_variable_cost",
+          "variable_cost_per_customer": "estimated_sensitivity_x0.75"
+        },
+        "unknowns": {
+          "qualified_leads_per_month": "Monthly qualified leads were not supplied.",
+          "monthly_conversion_rate": "Conversion rate was not supplied.",
+          "fixed_cost_per_month": "Fixed operating costs were not supplied.",
+          "acquisition_spend_per_month": "Acquisition spend was not supplied.",
+          "initial_investment": "Initial investment requirement was not supplied.",
+          "months_to_first_revenue": "Launch timeline and first revenue date were not supplied.",
+          "customer_lifetime_months": "Customer lifetime assumption was not supplied.",
+          "new_customers_per_month": "Qualified leads and conversion rate are both required.",
+          "revenue": "New customer growth or retention is unknown.",
+          "ltv": "Monthly price, contribution margin, and lifetime are required.",
+          "cac": "Acquisition spend and acquired customer count are required.",
+          "break_even_customers": "Fixed costs and price plus contribution margin or variable cost are required.",
+          "payback_months": "Investment, acquisition spend, and projected operating surplus are required."
+        }
+      }
+    }
+  },
+  "readiness": {
+    "recommendation": "MORE_EVIDENCE",
+    "reason_codes": [
+      "COMMERCIAL_EVIDENCE_COVERAGE_BELOW_THRESHOLD",
+      "INSUFFICIENT_INDEPENDENT_EVIDENCE",
+      "PRODUCT_SPECIFIC_DEMAND_NOT_VALIDATED",
+      "ECONOMICS_INSUFFICIENTLY_SPECIFIED",
+      "IMPLEMENTATION_FEASIBILITY_UNKNOWN",
+      "DIFFERENTIATION_NOT_ASSESSED"
+    ],
+    "blockers": [
+      "commercial_evidence_coverage",
+      "commercial_evidence_independence",
+      "product_specific_demand",
+      "commercial_economics"
+    ],
+    "supporting_evidence_ids": [
+      "00b68f18-38c8-4ff1-951f-5c5129b03aaa",
+      "1c877bbb-b257-45f1-8aa4-05447521cd51",
+      "21e4b6c9-09d0-4e29-b801-98e3077c24f4",
+      "2c45c994-3f76-4f51-b9c5-aa0dd6ef9aae",
+      "2dfa2323-cf08-42a0-b5d5-b26a132ad6f4",
+      "2ef59749-e41b-405c-8869-34573b739fd1",
+      "331f5621-a904-484b-bbb9-e4557b6241ef",
+      "3cedb7bb-dbf1-4ed5-bc20-c2e5dced6cb7",
+      "4590a81e-bf77-4f84-a2b8-e8bfc0819b81",
+      "526150d7-6ad0-49fb-83af-33bb8bc41e74",
+      "5f336b66-bd7e-4d84-b2a8-4926cba1fc8f",
+      "81f50ac4-e95b-471d-9843-a0c3f405db3a",
+      "8a12b125-60bd-4fbe-9aed-577028551d70",
+      "91f7649a-15df-40fc-92be-918d826cabb6",
+      "9d16f216-6d1e-4bd4-93dc-9e2ce2f56afe",
+      "9f84fefb-3dea-44ee-8226-763963fefe93",
+      "a8822301-5a1e-4135-8ff4-5ec5a6fb6bae",
+      "aaaeece6-54bd-4524-b493-c43bf3185fe6",
+      "b436ca52-59b1-4fcb-aff4-6c748a5a4629",
+      "bfa46359-04c6-4e15-8588-53caba4c6018",
+      "ce2b8936-e82d-4e29-84e3-5a40c17447b4",
+      "d521c5dc-668c-46fc-aed9-30dd81d15938",
+      "d82d1733-6987-41a9-a823-e7d7229eb43d",
+      "df69628e-d92e-4c13-91c8-0bcf9c1a13bb"
+    ],
+    "required_next_actions": [
+      "Collect independent evidence for uncovered commercial assumptions.",
+      "Collect evidence from independent source lineages.",
+      "Validate product-specific willingness to pay with customers or transactions.",
+      "Record price, contribution margin, lifetime, and acquisition cost assumptions.",
+      "Estimate build effort, dependencies, and launch constraints.",
+      "Compare the product against named alternatives using customer-relevant criteria."
+    ],
+    "evidence_coverage": 0.0,
+    "evidence_confidence": 0.0,
+    "readiness_score": 2.475,
+    "scenario_uncertainty": null,
+    "pipeline_validation_decision": "BUILD",
+    "pipeline_validation_reason_codes": [
+      "HARD_GATES_PASSED"
+    ]
+  },
+  "opportunity_investment_thesis": "Automate costly evidence review for regulated teams.",
+  "addressable_market": {
+    "value": null,
+    "basis": "UNKNOWN",
+    "reason": "No sourced market sizing is recorded."
+  },
+  "reachable_market": {
+    "value": null,
+    "basis": "UNKNOWN",
+    "reason": "No distribution reach or serviceable-market estimate is recorded."
+  },
+  "willingness_to_pay_evidence": [],
+  "commercial_evidence_grades": [
+    {
+      "assumption_id": "63063cb7-572f-4d7b-a7fa-c2208e0a0039",
+      "coverage": 0.0,
+      "independent_sources": 0,
+      "supporting_grade": "UNKNOWN",
+      "contradicting_grade": "UNKNOWN",
+      "product_supporting_grade": "UNKNOWN",
+      "market_supporting_grade": "UNKNOWN",
+      "supporting_confidence": 0.0,
+      "contradicting_confidence": 0.0,
+      "product_supporting_confidence": 0.0,
+      "market_supporting_confidence": 0.0,
+      "evidence_ids": [
+        "1c877bbb-b257-45f1-8aa4-05447521cd51",
+        "3cedb7bb-dbf1-4ed5-bc20-c2e5dced6cb7"
+      ],
+      "unknown_ids": [
+        "1c877bbb-b257-45f1-8aa4-05447521cd51",
+        "3cedb7bb-dbf1-4ed5-bc20-c2e5dced6cb7"
+      ]
+    },
+    {
+      "assumption_id": "35aa0430-e9a2-400b-bc46-1bb2f1f4d0fe",
+      "coverage": 0.0,
+      "independent_sources": 0,
+      "supporting_grade": "UNKNOWN",
+      "contradicting_grade": "UNKNOWN",
+      "product_supporting_grade": "UNKNOWN",
+      "market_supporting_grade": "UNKNOWN",
+      "supporting_confidence": 0.0,
+      "contradicting_confidence": 0.0,
+      "product_supporting_confidence": 0.0,
+      "market_supporting_confidence": 0.0,
+      "evidence_ids": [
+        "2dfa2323-cf08-42a0-b5d5-b26a132ad6f4",
+        "331f5621-a904-484b-bbb9-e4557b6241ef"
+      ],
+      "unknown_ids": [
+        "2dfa2323-cf08-42a0-b5d5-b26a132ad6f4",
+        "331f5621-a904-484b-bbb9-e4557b6241ef"
+      ]
+    },
+    {
+      "assumption_id": "70a681bf-08b6-4f34-9cd3-290b6a85cb4d",
+      "coverage": 0.0,
+      "independent_sources": 0,
+      "supporting_grade": "UNKNOWN",
+      "contradicting_grade": "UNKNOWN",
+      "product_supporting_grade": "UNKNOWN",
+      "market_supporting_grade": "UNKNOWN",
+      "supporting_confidence": 0.0,
+      "contradicting_confidence": 0.0,
+      "product_supporting_confidence": 0.0,
+      "market_supporting_confidence": 0.0,
+      "evidence_ids": [
+        "21e4b6c9-09d0-4e29-b801-98e3077c24f4",
+        "5f336b66-bd7e-4d84-b2a8-4926cba1fc8f"
+      ],
+      "unknown_ids": [
+        "21e4b6c9-09d0-4e29-b801-98e3077c24f4",
+        "5f336b66-bd7e-4d84-b2a8-4926cba1fc8f"
+      ]
+    },
+    {
+      "assumption_id": "4668be5c-b6fb-4cf3-af42-031d4075ad29",
+      "coverage": 0.0,
+      "independent_sources": 0,
+      "supporting_grade": "UNKNOWN",
+      "contradicting_grade": "UNKNOWN",
+      "product_supporting_grade": "UNKNOWN",
+      "market_supporting_grade": "UNKNOWN",
+      "supporting_confidence": 0.0,
+      "contradicting_confidence": 0.0,
+      "product_supporting_confidence": 0.0,
+      "market_supporting_confidence": 0.0,
+      "evidence_ids": [
+        "526150d7-6ad0-49fb-83af-33bb8bc41e74",
+        "d82d1733-6987-41a9-a823-e7d7229eb43d"
+      ],
+      "unknown_ids": [
+        "526150d7-6ad0-49fb-83af-33bb8bc41e74",
+        "d82d1733-6987-41a9-a823-e7d7229eb43d"
+      ]
+    },
+    {
+      "assumption_id": "944b86b1-2055-4652-9668-827840871aa7",
+      "coverage": 0.0,
+      "independent_sources": 0,
+      "supporting_grade": "UNKNOWN",
+      "contradicting_grade": "UNKNOWN",
+      "product_supporting_grade": "UNKNOWN",
+      "market_supporting_grade": "UNKNOWN",
+      "supporting_confidence": 0.0,
+      "contradicting_confidence": 0.0,
+      "product_supporting_confidence": 0.0,
+      "market_supporting_confidence": 0.0,
+      "evidence_ids": [
+        "8a12b125-60bd-4fbe-9aed-577028551d70",
+        "a8822301-5a1e-4135-8ff4-5ec5a6fb6bae"
+      ],
+      "unknown_ids": [
+        "8a12b125-60bd-4fbe-9aed-577028551d70",
+        "a8822301-5a1e-4135-8ff4-5ec5a6fb6bae"
+      ]
+    },
+    {
+      "assumption_id": "7cc47e01-d4df-43a5-9e05-800751276829",
+      "coverage": 0.0,
+      "independent_sources": 0,
+      "supporting_grade": "UNKNOWN",
+      "contradicting_grade": "UNKNOWN",
+      "product_supporting_grade": "UNKNOWN",
+      "market_supporting_grade": "UNKNOWN",
+      "supporting_confidence": 0.0,
+      "contradicting_confidence": 0.0,
+      "product_supporting_confidence": 0.0,
+      "market_supporting_confidence": 0.0,
+      "evidence_ids": [
+        "2ef59749-e41b-405c-8869-34573b739fd1",
+        "d521c5dc-668c-46fc-aed9-30dd81d15938"
+      ],
+      "unknown_ids": [
+        "2ef59749-e41b-405c-8869-34573b739fd1",
+        "d521c5dc-668c-46fc-aed9-30dd81d15938"
+      ]
+    },
+    {
+      "assumption_id": "0a282d42-ccea-49b8-ac7d-0099bbe11347",
+      "coverage": 0.0,
+      "independent_sources": 0,
+      "supporting_grade": "UNKNOWN",
+      "contradicting_grade": "UNKNOWN",
+      "product_supporting_grade": "UNKNOWN",
+      "market_supporting_grade": "UNKNOWN",
+      "supporting_confidence": 0.0,
+      "contradicting_confidence": 0.0,
+      "product_supporting_confidence": 0.0,
+      "market_supporting_confidence": 0.0,
+      "evidence_ids": [
+        "b436ca52-59b1-4fcb-aff4-6c748a5a4629",
+        "df69628e-d92e-4c13-91c8-0bcf9c1a13bb"
+      ],
+      "unknown_ids": [
+        "b436ca52-59b1-4fcb-aff4-6c748a5a4629",
+        "df69628e-d92e-4c13-91c8-0bcf9c1a13bb"
+      ]
+    },
+    {
+      "assumption_id": "ed79185c-780c-4875-968f-e6656341a01d",
+      "coverage": 0.0,
+      "independent_sources": 0,
+      "supporting_grade": "UNKNOWN",
+      "contradicting_grade": "UNKNOWN",
+      "product_supporting_grade": "UNKNOWN",
+      "market_supporting_grade": "UNKNOWN",
+      "supporting_confidence": 0.0,
+      "contradicting_confidence": 0.0,
+      "product_supporting_confidence": 0.0,
+      "market_supporting_confidence": 0.0,
+      "evidence_ids": [
+        "81f50ac4-e95b-471d-9843-a0c3f405db3a",
+        "9f84fefb-3dea-44ee-8226-763963fefe93"
+      ],
+      "unknown_ids": [
+        "81f50ac4-e95b-471d-9843-a0c3f405db3a",
+        "9f84fefb-3dea-44ee-8226-763963fefe93"
+      ]
+    },
+    {
+      "assumption_id": "eba0bd5d-6434-4bb3-a31d-522d5721d2ed",
+      "coverage": 0.0,
+      "independent_sources": 0,
+      "supporting_grade": "UNKNOWN",
+      "contradicting_grade": "UNKNOWN",
+      "product_supporting_grade": "UNKNOWN",
+      "market_supporting_grade": "UNKNOWN",
+      "supporting_confidence": 0.0,
+      "contradicting_confidence": 0.0,
+      "product_supporting_confidence": 0.0,
+      "market_supporting_confidence": 0.0,
+      "evidence_ids": [
+        "2c45c994-3f76-4f51-b9c5-aa0dd6ef9aae",
+        "9d16f216-6d1e-4bd4-93dc-9e2ce2f56afe"
+      ],
+      "unknown_ids": [
+        "2c45c994-3f76-4f51-b9c5-aa0dd6ef9aae",
+        "9d16f216-6d1e-4bd4-93dc-9e2ce2f56afe"
+      ]
+    },
+    {
+      "assumption_id": "d3b6c3ea-03b6-4d9e-b7ce-76de42a211a7",
+      "coverage": 0.0,
+      "independent_sources": 0,
+      "supporting_grade": "UNKNOWN",
+      "contradicting_grade": "UNKNOWN",
+      "product_supporting_grade": "UNKNOWN",
+      "market_supporting_grade": "UNKNOWN",
+      "supporting_confidence": 0.0,
+      "contradicting_confidence": 0.0,
+      "product_supporting_confidence": 0.0,
+      "market_supporting_confidence": 0.0,
+      "evidence_ids": [
+        "4590a81e-bf77-4f84-a2b8-e8bfc0819b81",
+        "ce2b8936-e82d-4e29-84e3-5a40c17447b4"
+      ],
+      "unknown_ids": [
+        "4590a81e-bf77-4f84-a2b8-e8bfc0819b81",
+        "ce2b8936-e82d-4e29-84e3-5a40c17447b4"
+      ]
+    },
+    {
+      "assumption_id": "14755683-9ab6-4681-86a6-b38e9cb22d76",
+      "coverage": 0.0,
+      "independent_sources": 0,
+      "supporting_grade": "UNKNOWN",
+      "contradicting_grade": "UNKNOWN",
+      "product_supporting_grade": "UNKNOWN",
+      "market_supporting_grade": "UNKNOWN",
+      "supporting_confidence": 0.0,
+      "contradicting_confidence": 0.0,
+      "product_supporting_confidence": 0.0,
+      "market_supporting_confidence": 0.0,
+      "evidence_ids": [
+        "91f7649a-15df-40fc-92be-918d826cabb6",
+        "bfa46359-04c6-4e15-8588-53caba4c6018"
+      ],
+      "unknown_ids": [
+        "91f7649a-15df-40fc-92be-918d826cabb6",
+        "bfa46359-04c6-4e15-8588-53caba4c6018"
+      ]
+    },
+    {
+      "assumption_id": "9d96e0a1-69d9-4efe-b786-d9685f4f4d9e",
+      "coverage": 0.0,
+      "independent_sources": 0,
+      "supporting_grade": "UNKNOWN",
+      "contradicting_grade": "UNKNOWN",
+      "product_supporting_grade": "UNKNOWN",
+      "market_supporting_grade": "UNKNOWN",
+      "supporting_confidence": 0.0,
+      "contradicting_confidence": 0.0,
+      "product_supporting_confidence": 0.0,
+      "market_supporting_confidence": 0.0,
+      "evidence_ids": [
+        "00b68f18-38c8-4ff1-951f-5c5129b03aaa",
+        "aaaeece6-54bd-4524-b493-c43bf3185fe6"
+      ],
+      "unknown_ids": [
+        "00b68f18-38c8-4ff1-951f-5c5129b03aaa",
+        "aaaeece6-54bd-4524-b493-c43bf3185fe6"
+      ]
+    }
+  ],
+  "critical_assumptions": [
+    {
+      "id": "63063cb7-572f-4d7b-a7fa-c2208e0a0039",
+      "created_at": "2026-11-15T11:45:01.791080Z",
+      "schema_version": 1,
+      "run_id": "61ff3290-36be-4c16-8206-9da3a4dd65e6",
+      "idea_id": "48fe0a67-8a9b-4954-a00c-c99d3463af2c",
+      "category": "DEMAND",
+      "statement": "The target problem exists and is severe",
+      "criticality": "FATAL",
+      "falsification_condition": "Independent sources show the problem is rare or immaterial",
+      "validation_condition": "At least two independent non-model sources quantify repeated pain",
+      "prior_confidence": null,
+      "current_confidence": null,
+      "evidence_for_ids": [
+        "1c877bbb-b257-45f1-8aa4-05447521cd51",
+        "3cedb7bb-dbf1-4ed5-bc20-c2e5dced6cb7"
+      ],
+      "evidence_against_ids": [],
+      "experiment_ids": [],
+      "status": "RESEARCH_SUPPORTED",
+      "uncertainty": 0.25
+    },
+    {
+      "id": "35aa0430-e9a2-400b-bc46-1bb2f1f4d0fe",
+      "created_at": "2026-11-15T11:45:01.791095Z",
+      "schema_version": 1,
+      "run_id": "61ff3290-36be-4c16-8206-9da3a4dd65e6",
+      "idea_id": "48fe0a67-8a9b-4954-a00c-c99d3463af2c",
+      "category": "BUYER",
+      "statement": "An identifiable buyer owns the problem",
+      "criticality": "FATAL",
+      "falsification_condition": "No role owns budget or accountability",
+      "validation_condition": "A named role owns budget and the relevant outcome",
+      "prior_confidence": null,
+      "current_confidence": null,
+      "evidence_for_ids": [
+        "331f5621-a904-484b-bbb9-e4557b6241ef",
+        "2dfa2323-cf08-42a0-b5d5-b26a132ad6f4"
+      ],
+      "evidence_against_ids": [],
+      "experiment_ids": [],
+      "status": "RESEARCH_SUPPORTED",
+      "uncertainty": 0.25
+    },
+    {
+      "id": "70a681bf-08b6-4f34-9cd3-290b6a85cb4d",
+      "created_at": "2026-11-15T11:45:01.791103Z",
+      "schema_version": 1,
+      "run_id": "61ff3290-36be-4c16-8206-9da3a4dd65e6",
+      "idea_id": "48fe0a67-8a9b-4954-a00c-c99d3463af2c",
+      "category": "WTP",
+      "statement": "The buyer is willing to pay",
+      "criticality": "FATAL",
+      "falsification_condition": "Observed behavior rejects the viable price range",
+      "validation_condition": "Primary or observed evidence supports the price range",
+      "prior_confidence": null,
+      "current_confidence": null,
+      "evidence_for_ids": [
+        "21e4b6c9-09d0-4e29-b801-98e3077c24f4",
+        "5f336b66-bd7e-4d84-b2a8-4926cba1fc8f"
+      ],
+      "evidence_against_ids": [],
+      "experiment_ids": [],
+      "status": "RESEARCH_SUPPORTED",
+      "uncertainty": 0.25
+    },
+    {
+      "id": "4668be5c-b6fb-4cf3-af42-031d4075ad29",
+      "created_at": "2026-11-15T11:45:01.791110Z",
+      "schema_version": 1,
+      "run_id": "61ff3290-36be-4c16-8206-9da3a4dd65e6",
+      "idea_id": "48fe0a67-8a9b-4954-a00c-c99d3463af2c",
+      "category": "DISTRIBUTION",
+      "statement": "The buyer is reachable through a repeatable digital channel",
+      "criticality": "FATAL",
+      "falsification_condition": "No compliant repeatable channel reaches the buyer",
+      "validation_condition": "A measurable digital channel reaches the buyer",
+      "prior_confidence": null,
+      "current_confidence": null,
+      "evidence_for_ids": [
+        "d82d1733-6987-41a9-a823-e7d7229eb43d",
+        "526150d7-6ad0-49fb-83af-33bb8bc41e74"
+      ],
+      "evidence_against_ids": [],
+      "experiment_ids": [],
+      "status": "RESEARCH_SUPPORTED",
+      "uncertainty": 0.25
+    },
+    {
+      "id": "7cc47e01-d4df-43a5-9e05-800751276829",
+      "created_at": "2026-11-15T11:45:01.791122Z",
+      "schema_version": 1,
+      "run_id": "61ff3290-36be-4c16-8206-9da3a4dd65e6",
+      "idea_id": "48fe0a67-8a9b-4954-a00c-c99d3463af2c",
+      "category": "AUTOMATION",
+      "statement": "At least 90% of delivery can be automated",
+      "criticality": "FATAL",
+      "falsification_condition": "Human work scales linearly with customers",
+      "validation_condition": "Automation design keeps marginal human work sublinear",
+      "prior_confidence": null,
+      "current_confidence": null,
+      "evidence_for_ids": [
+        "d521c5dc-668c-46fc-aed9-30dd81d15938",
+        "2ef59749-e41b-405c-8869-34573b739fd1"
+      ],
+      "evidence_against_ids": [],
+      "experiment_ids": [],
+      "status": "RESEARCH_SUPPORTED",
+      "uncertainty": 0.25
+    },
+    {
+      "id": "ed79185c-780c-4875-968f-e6656341a01d",
+      "created_at": "2026-11-15T11:45:01.791134Z",
+      "schema_version": 1,
+      "run_id": "61ff3290-36be-4c16-8206-9da3a4dd65e6",
+      "idea_id": "48fe0a67-8a9b-4954-a00c-c99d3463af2c",
+      "category": "ECONOMICS",
+      "statement": "Unit economics can sustain the delivery model",
+      "criticality": "FATAL",
+      "falsification_condition": "Conservative gross margin is structurally negative",
+      "validation_condition": "Conservative costs support positive gross margin",
+      "prior_confidence": null,
+      "current_confidence": null,
+      "evidence_for_ids": [
+        "81f50ac4-e95b-471d-9843-a0c3f405db3a",
+        "9f84fefb-3dea-44ee-8226-763963fefe93"
+      ],
+      "evidence_against_ids": [],
+      "experiment_ids": [],
+      "status": "RESEARCH_SUPPORTED",
+      "uncertainty": 0.25
+    },
+    {
+      "id": "14755683-9ab6-4681-86a6-b38e9cb22d76",
+      "created_at": "2026-11-15T11:45:01.791159Z",
+      "schema_version": 1,
+      "run_id": "61ff3290-36be-4c16-8206-9da3a4dd65e6",
+      "idea_id": "48fe0a67-8a9b-4954-a00c-c99d3463af2c",
+      "category": "REGULATORY",
+      "statement": "The product can operate compliantly",
+      "criticality": "FATAL",
+      "falsification_condition": "Official rules prohibit the delivery model",
+      "validation_condition": "Official sources support a compliant operating path",
+      "prior_confidence": null,
+      "current_confidence": null,
+      "evidence_for_ids": [
+        "91f7649a-15df-40fc-92be-918d826cabb6",
+        "bfa46359-04c6-4e15-8588-53caba4c6018"
+      ],
+      "evidence_against_ids": [],
+      "experiment_ids": [],
+      "status": "RESEARCH_SUPPORTED",
+      "uncertainty": 0.25
+    }
+  ],
+  "recommended_experiment": {
+    "description": "Preregistered price-choice test",
+    "estimated_cost": {
+      "value": 0,
+      "basis": "ESTIMATE",
+      "currency": "USD"
+    },
+    "success_criteria": "A preregistered share of qualified buyers selects a paid tier."
+  },
+  "automation_ratio": 0.95,
+  "human_minutes_per_customer_at_10x": 1.5,
+  "red_team_findings": [
+    "Resolved market-skeptic challenge"
+  ],
+  "ranking": {
+    "idea_id": "48fe0a67-8a9b-4954-a00c-c99d3463af2c",
+    "rating": 1512.0,
+    "rank": 1,
+    "match_count": 1,
+    "stability": 1.0,
+    "portfolio_size": 2
+  },
+  "recommended_experiments": [
+    "Preregistered price-choice test"
+  ],
+  "decision": "MORE_EVIDENCE",
+  "reason_codes": [
+    "COMMERCIAL_EVIDENCE_COVERAGE_BELOW_THRESHOLD",
+    "INSUFFICIENT_INDEPENDENT_EVIDENCE",
+    "PRODUCT_SPECIFIC_DEMAND_NOT_VALIDATED",
+    "ECONOMICS_INSUFFICIENTLY_SPECIFIED",
+    "IMPLEMENTATION_FEASIBILITY_UNKNOWN",
+    "DIFFERENTIATION_NOT_ASSESSED"
+  ]
+}

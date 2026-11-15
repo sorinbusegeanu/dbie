@@ -62,6 +62,80 @@ Omitting the four bounded-target options runs the complete strict
 `acceptance-run` remains the fast offline regression path for deterministic
 domain gates and dashboard artifacts.
 
+## Commercial decision quality (offline)
+
+DBIE has deterministic commercial economics, commercial evidence grades, a
+readiness assessment, and historical opportunity evaluation. These components
+run without Ollama, CrewAI execution, inference, or external calls. The existing
+14-stage flow and persisted records remain compatible: new evidence and
+prediction fields have defaults so older records continue to load.
+
+Economics are calculated in the declared currency and projection period. The
+calculator records each input as observed, assumed, estimated, or unknown,
+retains evidence IDs and uncertainty bounds, and returns unknown values with a
+reason when an input is missing or the calculation is undefined. Revenue uses
+starting customers, qualified leads × conversion, monthly price, and monthly
+retention. CAC is acquisition spend divided by converted new customers; LTV is
+monthly price × contribution margin × assumed customer lifetime. Gross and
+contribution margin, fixed and variable costs, break-even, investment, payback,
+and first-revenue timing are included in pessimistic/base/optimistic scenarios.
+Recorded input bounds drive the outer scenarios; where a bound is unavailable,
+the calculator applies a deterministic 0.75/1.25 sensitivity to demand and a
+reversed 1.25/0.75 sensitivity to costs. These scenario sensitivities are
+estimates and are recorded per scenario. Observed values stay fixed unless a
+recorded uncertainty range supplies an outer value.
+
+Evidence records can classify market signals, existing markets, customer
+validation, purchase intent, or observed transactions, and separately mark
+market versus product scope. Commercial grades collapse repeated references by
+lineage and preserve supporting and contradicting grades. Missing classification
+stays unknown. Readiness checks hard eligibility first, then fatal assumptions,
+coverage, independent sources, product-specific demand, economics, feasibility,
+and differentiation. The finalist evidence gate remains in force. Thresholds
+are configured in `config/policies.yaml` under `decision_readiness`.
+The deterministic readiness score is 0–10: 25% commercial evidence coverage,
+15% source confidence, 20% economic viability, 15% product-demand grade times
+confidence, 10% implementation feasibility, 10% differentiation, and 5% automation
+ratio. A hard eligibility failure scores zero, and no readiness score overrides
+the eligibility or fatal-assumption gates.
+Scenario spread across available revenue, LTV, and CAC cases is also checked
+against the configurable `maximum_scenario_spread` threshold.
+
+Historical benchmark files use format version `1.0`; evidence after each
+historical decision date is excluded. The offline command writes both JSON and
+Markdown reports:
+
+```bash
+uv run dbie commercial-benchmark \
+  --benchmark benchmarks/commercial_opportunities_synthetic.json \
+  --output runs/benchmarks/commercial --k 5
+```
+
+The report includes Precision@K, Recall@K, NDCG, decision accuracy, confusion
+counts, false-positive investments, missed successes, baseline precision,
+historical evidence coverage, Brier score, and the count of excluded future
+evidence. Ambiguous outcomes are excluded from ranking metrics, decision accuracy,
+and calibration; the report states the number of labeled top-K records.
+`evaluate_forecast` reports absolute and percentage errors, forecast bias
+(predicted minus observed), and scenario-interval coverage. Structured
+predictions are immutable, and measured outcomes retain their measurement date
+and evidence-source IDs. Historical real-world outcomes
+and commercial classifications still require sourced human curation. Synthetic
+demo artifacts are in `examples/`.
+
+For offline forecast evaluation, provide JSON rows containing run/opportunity
+IDs, locked `predicted_metrics`, observed metrics, scenario intervals, a
+measurement date, evidence source IDs, and (when known) decision outcome labels:
+
+```bash
+uv run dbie forecast-report \
+  --input-file benchmarks/forecast_observations_synthetic.json \
+  --output runs/benchmarks/forecasts
+```
+
+The report aggregates by run, opportunity, and portfolio and reports outcomes
+by recommendation category.
+
 ## Run dashboard
 
 The dashboard is a read-only filesystem viewer for persisted crew-visible output

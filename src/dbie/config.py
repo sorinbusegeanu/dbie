@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from dbie.exceptions import ConfigurationError
+from dbie.domain.decisions import ReadinessPolicy
 from dbie.models.roles import ModelRole
 
 
@@ -150,3 +151,15 @@ def load_models_config(settings: Settings) -> ModelsConfig:
 
 def load_tools_config(settings: Settings) -> dict[str, Any]:
     return _yaml_mapping(settings.tools_config)
+
+
+def load_readiness_policy(settings: Settings) -> ReadinessPolicy:
+    """Load decision thresholds from the existing policies YAML."""
+    data = _yaml_mapping(settings.policies_config)
+    readiness = data.get("decision_readiness", {})
+    if not isinstance(readiness, dict):
+        raise ConfigurationError("decision_readiness policy must be a mapping")
+    try:
+        return ReadinessPolicy.model_validate(readiness)
+    except ValueError as exc:
+        raise ConfigurationError(f"invalid decision_readiness policy: {exc}") from exc

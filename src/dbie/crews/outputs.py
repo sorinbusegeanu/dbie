@@ -10,10 +10,17 @@ from dbie.domain.enums import (
     AssumptionCategory,
     AssumptionCriticality,
     AssumptionStatus,
+    CommercialEvidenceClass,
     DecisionType,
     EvidenceDirection,
+    EvidenceScope,
 )
-from dbie.domain.models import AutonomousScalability, DigitalEligibility
+from dbie.domain.models import (
+    AutonomousScalability,
+    CommercialForecastMetrics,
+    DigitalEligibility,
+    ForecastIntervals,
+)
 
 
 class CrewOutput(BaseModel):
@@ -96,6 +103,8 @@ class EvidenceClaim(CrewOutput):
     direction: EvidenceDirection
     reliability_score: float = Field(ge=0, le=1)
     freshness_score: float = Field(ge=0, le=1)
+    commercial_classification: CommercialEvidenceClass = CommercialEvidenceClass.UNKNOWN
+    commercial_scope: EvidenceScope = EvidenceScope.UNKNOWN
 
 
 class EvidenceBatch(CrewOutput):
@@ -175,6 +184,8 @@ class ExperimentProtocolDraft(CrewOutput):
     stop_condition: str = Field(min_length=5)
     predicted_value: str = Field(min_length=3)
     prediction_rationale: str = Field(min_length=8)
+    predicted_metrics: CommercialForecastMetrics = Field(default_factory=CommercialForecastMetrics)
+    scenario_intervals: ForecastIntervals = Field(default_factory=ForecastIntervals)
 
 
 class ExperimentBatch(CrewOutput):

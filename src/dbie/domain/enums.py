@@ -72,6 +72,21 @@ class EvidenceDirection(StrEnum):
     NEUTRAL = "NEUTRAL"
 
 
+class CommercialEvidenceClass(StrEnum):
+    MARKET_SIGNAL = "MARKET_SIGNAL"
+    EXISTING_MARKET = "EXISTING_MARKET"
+    CUSTOMER_VALIDATION = "CUSTOMER_VALIDATION"
+    PURCHASE_INTENT = "PURCHASE_INTENT"
+    OBSERVED_TRANSACTION = "OBSERVED_TRANSACTION"
+    UNKNOWN = "UNKNOWN"
+
+
+class EvidenceScope(StrEnum):
+    MARKET = "MARKET"
+    PRODUCT = "PRODUCT"
+    UNKNOWN = "UNKNOWN"
+
+
 class DecisionType(StrEnum):
     BUILD = "BUILD"
     ITERATE = "ITERATE"

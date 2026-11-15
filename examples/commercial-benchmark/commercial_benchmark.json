@@ -1,0 +1,28 @@
+{
+  "baseline_build_precision": 0.5,
+  "baseline_decision_accuracy": 0.6666666666666666,
+  "baseline_ndcg_at_k": 0.6309297535714575,
+  "baseline_precision_at_k": 0.3333333333333333,
+  "benchmark_id": "dbie-commercial-synthetic-v1",
+  "confusion_matrix": {
+    "false_negative": 0,
+    "false_positive": 0,
+    "true_negative": 2,
+    "true_positive": 1
+  },
+  "decision_accuracy": 1.0,
+  "evidence_confidence_brier": 0.05124999999999999,
+  "evidence_cutoff_coverage": 0.5,
+  "excluded_future_evidence_count": 1,
+  "false_positive_investments": 0,
+  "format_version": "1.0",
+  "k": 3,
+  "labeled_at_k": 3,
+  "labeled_opportunity_count": 3,
+  "missed_successful_opportunities": 0,
+  "ndcg_at_k": 1.0,
+  "opportunity_count": 4,
+  "precision_at_k": 0.3333333333333333,
+  "recall_at_k": 1.0,
+  "score_brier": 0.02416666666666667
+}

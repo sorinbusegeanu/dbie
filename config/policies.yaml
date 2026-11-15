@@ -4,6 +4,15 @@ eligibility:
 evidence:
   minimum_independent_sources_for_material_claim: 2
   model_judgment_satisfies_fatal_assumption: false
+decision_readiness:
+  minimum_evidence_coverage: 0.6
+  minimum_independent_sources: 2
+  minimum_ltv_to_cac: 3.0
+  require_customer_validation_for_build: true
+  minimum_automation_ratio: 0.8
+  maximum_human_minutes_per_customer_at_10x: 15
+  minimum_supporting_evidence_confidence: 0.5
+  maximum_scenario_spread: 1.0
 approvals:
   require_for:
     - external_spend

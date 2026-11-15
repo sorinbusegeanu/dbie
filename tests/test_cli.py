@@ -70,3 +70,36 @@ def test_resume_restores_original_live_run_targets() -> None:
     restored = _restored_live_config(LiveMVPConfig(), state)
 
     assert restored == original
+
+
+def test_offline_commercial_reports_run_without_runtime_or_inference(tmp_path: Path) -> None:
+    runner = CliRunner()
+    benchmark = runner.invoke(
+        app,
+        [
+            "commercial-benchmark",
+            "--benchmark",
+            "benchmarks/commercial_opportunities_synthetic.json",
+            "--output",
+            str(tmp_path / "benchmark"),
+            "--k",
+            "2",
+        ],
+    )
+    assert benchmark.exit_code == 0, benchmark.output
+    assert (tmp_path / "benchmark" / "commercial_benchmark.json").exists()
+    forecast = runner.invoke(
+        app,
+        [
+            "forecast-report",
+            "--input-file",
+            "benchmarks/forecast_observations_synthetic.json",
+            "--output",
+            str(tmp_path / "forecasts"),
+        ],
+    )
+    assert forecast.exit_code == 0, forecast.output
+    assert (tmp_path / "forecasts" / "forecast_report.md").exists()
+    forecast_report = json.loads((tmp_path / "forecasts" / "forecast_report.json").read_text())
+    assert forecast_report["observations"][0]["measured_at"]
+    assert forecast_report["observations"][0]["evidence_source_ids"]

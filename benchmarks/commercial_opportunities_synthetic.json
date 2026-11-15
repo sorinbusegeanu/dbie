@@ -1,0 +1,63 @@
+{
+  "format_version": "1.0",
+  "benchmark_id": "dbie-commercial-synthetic-v1",
+  "opportunities": [
+    {
+      "opportunity_id": "synthetic-success",
+      "description": "Successful vertical workflow SaaS with validated demand.",
+      "decision_date": "2021-01-01T00:00:00Z",
+      "evidence": [
+        {"reference": "interview-study-a", "available_at": "2020-12-01T00:00:00Z", "confidence": 0.8},
+        {"reference": "future-revenue-report", "available_at": "2022-01-01T00:00:00Z", "confidence": 0.99}
+      ],
+      "outcome_date": "2023-01-01T00:00:00Z",
+      "commercially_successful": true,
+      "outcome_provenance": ["synthetic fixture"],
+      "dbie_recommendation": "BUILD",
+      "dbie_score": 0.85,
+      "dbie_rank": 1,
+      "baseline_recommendation": "BUILD",
+      "baseline_score": 0.6
+    },
+    {
+      "opportunity_id": "synthetic-failure",
+      "description": "Digital service with weak retention and poor unit economics.",
+      "decision_date": "2021-02-01T00:00:00Z",
+      "evidence": [
+        {"reference": "churn-study", "available_at": "2021-01-15T00:00:00Z", "confidence": 0.25}
+      ],
+      "outcome_date": "2023-02-01T00:00:00Z",
+      "commercially_successful": false,
+      "outcome_provenance": ["synthetic fixture"],
+      "dbie_recommendation": "MORE_EVIDENCE",
+      "dbie_score": 0.2,
+      "dbie_rank": 3,
+      "baseline_recommendation": "BUILD",
+      "baseline_score": 0.7
+    },
+    {
+      "opportunity_id": "synthetic-ambiguous",
+      "description": "Product with mixed adoption signals and no settled outcome.",
+      "decision_date": "2021-03-01T00:00:00Z",
+      "evidence": [],
+      "outcome_date": "2023-03-01T00:00:00Z",
+      "commercially_successful": null,
+      "outcome_provenance": ["synthetic fixture; outcome ambiguous"],
+      "dbie_recommendation": "ITERATE",
+      "dbie_score": 0.5,
+      "dbie_rank": 2
+    },
+    {
+      "opportunity_id": "synthetic-insufficient-evidence",
+      "description": "Plausible digital opportunity without sufficient historical evidence.",
+      "decision_date": "2021-04-01T00:00:00Z",
+      "evidence": [],
+      "outcome_date": "2023-04-01T00:00:00Z",
+      "commercially_successful": false,
+      "outcome_provenance": ["synthetic fixture"],
+      "dbie_recommendation": "MORE_EVIDENCE",
+      "dbie_score": 0.1,
+      "dbie_rank": 4
+    }
+  ]
+}

@@ -15,8 +15,6 @@
 
 **Inspect the code:** [Flow](src/dbie/flows/idea_pipeline.py) · [Agents](src/dbie/crews/catalog.py) · [Model scheduling](src/dbie/models/phase_scheduler.py) · [Tool gateway](src/dbie/tools/gateway.py) · [Tests](tests/).
 
-
-
 DBIE is a local-first, evidence-driven engine for discovering and evaluating
 fully digital, autonomously scalable business opportunities.
 
@@ -56,8 +54,9 @@ uv run dbie live-run \
   --no-strict-targets
 ```
 
-Omitting the four bounded-target options runs the complete strict
-500-signal/250-idea/25-candidate funnel.
+Omitting `--signals`, `--ideas`, and `--candidates` uses the configured strict
+500-signal/250-idea/25-candidate funnel. `--no-strict-targets` disables exact
+signal and idea generation targets for a bounded trial run.
 
 `acceptance-run` remains the fast offline regression path for deterministic
 domain gates and dashboard artifacts.
@@ -247,10 +246,10 @@ conversation views every three seconds. The documented default binds all local
 interfaces; use `--host 127.0.0.1` to restrict it to the host. No mutation
 routes, database coupling, model calls, or hidden model reasoning are exposed.
 
-## v0.6 OSS stack
+## OSS tool stack
 
-CrewAI sees exactly ten stable logical tools. Their implementations remain
-hidden behind the Tool Gateway:
+DBIE defines ten stable logical tool contracts behind the Tool Gateway. Each
+agent receives only the subset allowed by its role:
 
 - SearXNG; Trafilatura then Crawl4AI then Playwright page routing
 - credential-free community search across Stack Exchange, Hacker News, GitHub
@@ -308,8 +307,8 @@ uv run dbie doctor
 
 ## Specialized model phases
 
-The v0.7 NemoClaw model-phase design is implemented above the provider router.
-Crews declare a logical role rather than a model name:
+DBIE's `ModelPhaseScheduler` batches tasks above the provider router. Crews
+declare a logical role rather than a model name:
 
 - `THINKER` → `qwen3:14b-64k` in thinking mode for synthesis, assumptions,
   reconciliation, experiment design, and portfolio reasoning because current
@@ -325,8 +324,10 @@ checkpointed before the model residency changes. Model/task performance and
 phase-switch metrics are stored separately from venture evidence, so model
 agreement or operational quality can never become market evidence.
 
-All mappings are configuration in `config/models.yaml`; Crew definitions contain
-only the stable logical role. The GPT-OSS 64k tag can be recreated without a
+Model profile, role-to-profile, reasoning, and task-temperature settings live
+in `config/models.yaml`. Agent-to-task-class assignments are defined in
+`src/dbie/crews/catalog.py` and task-class-to-model-role assignments in
+`src/dbie/models/task_roles.py`. The GPT-OSS 64k tag can be recreated without a
 download from an installed 96k tag:
 
 ```bash
